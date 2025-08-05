@@ -9,15 +9,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pradeeprdev/call-kaarigar-server.git"
+    "url": "git+https://github.com/pradeeprdev/Call-Karigar-Backend.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/pradeeprdev/call-kaarigar-server/issues"
+    "url": "https://github.com/pradeeprdev/Call-Karigar-Backend/issues"
   },
-  "homepage": "https://github.com/pradeeprdev/call-kaarigar-server#readme",
+  "homepage": "https://github.com/pradeeprdev/Call-Karigar-Backend#readme",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
