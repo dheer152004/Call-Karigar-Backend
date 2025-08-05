@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Call Karigar</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="form-container">
+        <h2>Create Account</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required placeholder="Enter your full name">
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="Create a password">
+            </div>
+            <div class="form-group">
+                <label for="role">Role</label>
+                <select id="role" name="role" class="role-select" required>
+                    <option value="customer">Customer</option>
+                    <option value="worker">Worker</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <button type="submit" class="submit-btn">Register</button>
+            <p id="error-message" class="error-message"></p>
+            <div class="form-footer">
+                <p>Already have an account? <a href="/login.html">Login here</a></p>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const errorMessage = document.getElementById('error-message');
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            try {
+                const response = await fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: registerForm.name.value,
+                        email: registerForm.email.value,
+                        phone: registerForm.phone.value,
+                        password: registerForm.password.value,
+                        role: registerForm.role.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Registration failed');
+                }
+
+                // Store token in localStorage
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                // Redirect based on user role
+                switch(data.user.role) {
+                    case 'worker':
+                        window.location.href = '/worker/dashboard.html';
+                        break;
+                    case 'customer':
+                        window.location.href = '/customer/dashboard.html';
+                        break;
+                    case 'admin':
+                        window.location.href = '/admin/dashboard.html';
+                        break;
+                    default:
+                        window.location.href = '/dashboard.html';
+                }
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - Call Karigar</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .nav-bar {
+            background: #4A90E2;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .nav-bar h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .profile-btn {
+            background: white;
+            color: #4A90E2;
+        }
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        .profile-card {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .profile-name {
+            font-size: 1.25rem;
+            color: #333;
+            font-weight: 500;
+        }
+        .profile-role {
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .role-admin {
+            background: #dc3545;
+            color: white;
+        }
+        .role-worker {
+            background: #28a745;
+            color: white;
+        }
+        .role-customer {
+            background: #4A90E2;
+            color: white;
+        }
+        .profile-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .detail-item {
+            padding: 0.5rem;
+        }
+        .detail-label {
+            color: #666;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        .detail-value {
+            color: #333;
+            font-weight: 500;
+        }
+        #profilesContainer {
+            margin-top: 2rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #dc3545;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <h1>Call Karigar Dashboard</h1>
+        <div class="nav-buttons">
+            <button class="nav-btn profile-btn" onclick="showMyProfile()">My Profile</button>
+            <button class="nav-btn logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="errorMessage" style="display: none;" class="error"></div>
+        <div id="profilesContainer">
+            <div class="loading">Loading profiles...</div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        if (!token || !user) {
+            window.location.href = '/login.html';
+        }
+
+        // Show error message
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Create profile card
+        function createProfileCard(profile) {
+            return `
+                <div class="profile-card">
+                    <div class="profile-header">
+                        <h2 class="profile-name">${profile.name}</h2>
+                        <span class="profile-role role-${profile.role}">${profile.role}</span>
+                    </div>
+                    <div class="profile-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Email</div>
+                            <div class="detail-value">${profile.email}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Phone</div>
+                            <div class="detail-value">${profile.phone}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Joined Date</div>
+                            <div class="detail-value">${formatDate(profile.joinedDate)}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Last Updated</div>
+                            <div class="detail-value">${formatDate(profile.lastUpdated)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Fetch and display profiles
+        async function fetchProfiles() {
+            try {
+                const response = await fetch('/api/users/all', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch profiles');
+                }
+
+                const data = await response.json();
+                const container = document.getElementById('profilesContainer');
+                
+                if (data.users && data.users.length > 0) {
+                    container.innerHTML = data.users.map(profile => createProfileCard(profile)).join('');
+                } else {
+                    container.innerHTML = '<p>No profiles found.</p>';
+                }
+
+            } catch (error) {
+                showError(error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        // Show my profile
+        async function showMyProfile() {
+            try {
+                const response = await fetch('/api/users/profile', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch profile');
+                }
+
+                const profile = await response.json();
+                const container = document.getElementById('profilesContainer');
+                container.innerHTML = createProfileCard(profile);
+
+            } catch (error) {
+                showError(error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+
+        // Initial load - fetch all profiles for admin, or just show own profile for others
+        if (user.role === 'admin') {
+            fetchProfiles();
+        } else {
+            showMyProfile();
+        }
+    </script>
+</body>
+</html>

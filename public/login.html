@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="login-container">
+    <form id="loginForm">
+      <h2>LOGIN</h2>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="admin@example.com" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" required />
+
+      <button type="submit">Login</button>
+
+      <p id="responseMessage">Don't have account <a href="register.html"> SignUp</p>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('responseMessage');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      try {
+        const res = await fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: form.email.value,
+            password: form.password.value
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          // Store token and user data in localStorage
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+
+          msg.style.color = 'green';
+          msg.textContent = 'Login successful! Redirecting...';
+
+          // Redirect based on user role
+          setTimeout(() => {
+            switch(data.user.role) {
+              case 'admin':
+                window.location.href = '/admin/dashboard.html';
+                break;
+              case 'worker':
+                window.location.href = '/worker/dashboard.html';
+                break;
+              case 'customer':
+                window.location.href = '/customer/dashboard.html';
+                break;
+              default:
+                window.location.href = '/customer/dashboard.html';
+            }
+          }, 1000); // Short delay to show the success message
+        } else {
+          msg.style.color = 'red';
+          msg.textContent = data.message || 'Login failed';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        msg.style.color = 'red';
+        msg.textContent = 'An error occurred during login';
+      }
+    });
+
+    // Check if already logged in
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (token && user) {
+      // Redirect if already logged in
+      switch(user.role) {
+        case 'admin':
+          window.location.href = '/admin/dashboard.html';
+          break;
+        case 'worker':
+          window.location.href = '/worker/dashboard.html';
+          break;
+        default:
+          window.location.href = '/customer/dashboard.html';
+      }
+    }
+  </script>
+</body>
+</html>

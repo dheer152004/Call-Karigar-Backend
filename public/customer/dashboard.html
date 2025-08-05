@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard - Call Karigar</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .dashboard {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .welcome-text {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .service-card {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .service-card h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .book-btn {
+            padding: 0.5rem 1rem;
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h2 class="welcome-text">Welcome Customer, <span id="userName">Customer</span></h2>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="services-grid">
+            <div class="service-card">
+                <h3>Plumbing Services</h3>
+                <p>Professional plumbing services for your home</p>
+                <button class="book-btn">Book Service</button>
+            </div>
+            <div class="service-card">
+                <h3>Electrical Work</h3>
+                <p>Expert electrical repairs and installations</p>
+                <button class="book-btn">Book Service</button>
+            </div>
+            <div class="service-card">
+                <h3>Carpentry</h3>
+                <p>Custom carpentry and furniture repair</p>
+                <button class="book-btn">Book Service</button>
+            </div>
+            <div class="service-card">
+                <h3>Painting</h3>
+                <p>Professional painting services</p>
+                <button class="book-btn">Book Service</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        if (!token || !user || user.role !== 'customer') {
+            window.location.href = '/login.html';
+        }
+
+        // Set user name
+        document.getElementById('userName').textContent = user.name;
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>

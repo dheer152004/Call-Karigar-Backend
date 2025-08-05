@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Dashboard - Call Karigar</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .dashboard {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .welcome-text {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .job-list {
+            margin-top: 2rem;
+        }
+        .job-card {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .job-title {
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .job-status {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+        .status-pending {
+            background-color: #ffd700;
+            color: #333;
+        }
+        .status-in-progress {
+            background-color: #4A90E2;
+            color: white;
+        }
+        .status-completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .job-details {
+            color: #666;
+            margin: 1rem 0;
+        }
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+        }
+        .accept-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .complete-btn {
+            background-color: #4A90E2;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h2 class="welcome-text">Welcome Worker, <span id="userName">Worker</span></h2>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="job-list">
+            <h3>Your Jobs</h3>
+            <div class="job-card">
+                <div class="job-header">
+                    <h4 class="job-title">Plumbing Repair</h4>
+                    <span class="job-status status-pending">Pending</span>
+                </div>
+                <div class="job-details">
+                    <p>Location: 123 Main St</p>
+                    <p>Customer: John Doe</p>
+                    <p>Description: Fix leaking pipe in bathroom</p>
+                </div>
+                <button class="action-btn accept-btn">Accept Job</button>
+            </div>
+
+            <div class="job-card">
+                <div class="job-header">
+                    <h4 class="job-title">Electrical Installation</h4>
+                    <span class="job-status status-in-progress">In Progress</span>
+                </div>
+                <div class="job-details">
+                    <p>Location: 456 Oak Ave</p>
+                    <p>Customer: Jane Smith</p>
+                    <p>Description: Install new ceiling fan</p>
+                </div>
+                <button class="action-btn complete-btn">Mark Complete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        if (!token || !user || user.role !== 'worker') {
+            window.location.href = '/login.html';
+        }
+
+        // Set user name
+        document.getElementById('userName').textContent = user.name;
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
