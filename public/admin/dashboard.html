@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Call Karigar</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .dashboard {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .welcome-text {
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #4A90E2;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+        }
+        .users-table th,
+        .users-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .users-table th {
+            background-color: #f8f9fa;
+            font-weight: 500;
+        }
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+        .role-customer {
+            background-color: #4A90E2;
+            color: white;
+        }
+        .role-worker {
+            background-color: #28a745;
+            color: white;
+        }
+        .role-admin {
+            background-color: #dc3545;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h2 class="welcome-text">Welcome Admin, <span id="userName">Admin</span></h2>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">0</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalWorkers">0</div>
+                <div class="stat-label">Workers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalCustomers">0</div>
+                <div class="stat-label">Customers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalJobs">0</div>
+                <div class="stat-label">Active Jobs</div>
+            </div>
+        </div>
+
+        <div class="users-list">
+            <h3>Users Management</h3>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Joined Date</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <!-- User rows will be dynamically added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+
+        if (!token || !user || user.role !== 'admin') {
+            window.location.href = '/login.html';
+        }
+
+        // Set user name
+        document.getElementById('userName').textContent = user.name;
+
+        // Fetch users data
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/users/all', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
+                }
+
+                const data = await response.json();
+                const users = data.users || [];
+                
+                // Update stats
+                const totalUsers = users.length;
+                const workers = users.filter(u => u.role === 'worker').length;
+                const customers = users.filter(u => u.role === 'customer').length;
+                const admins = users.filter(u => u.role === 'admin').length;
+                
+                // Update statistics cards
+                document.getElementById('totalUsers').textContent = totalUsers;
+                document.getElementById('totalWorkers').textContent = workers;
+                document.getElementById('totalCustomers').textContent = customers;
+                
+                // For active jobs, you might want to implement a separate endpoint
+                // For now, showing total non-admin users as potential job creators
+                document.getElementById('totalJobs').textContent = customers + workers;
+
+                // Populate users table with more details
+                const tableBody = document.getElementById('usersTableBody');
+                tableBody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.name || 'N/A'}</td>
+                        <td>${user.email || 'N/A'}</td>
+                        <td>${user.phone || 'N/A'}</td>
+                        <td>
+                            <span class="status-badge role-${user.role}">
+                                ${user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                            </span>
+                        </td>
+                        <td>${new Date(user.createdAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}</td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        }
+
+        // Initial load
+        fetchUsers();
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "name": "call-kaarigar-server",
+  "version": "1.0.0",
+  "description": "Backend services for the Call Karigar platform — managing user authentication, service provider listings, bookings, and admin controls. Built with Nodejs, Express, MongoDB, this API supports both user and admin interfaces.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pradeeprdev/call-kaarigar-server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pradeeprdev/call-kaarigar-server/issues"
+  },
+  "homepage": "https://github.com/pradeeprdev/call-kaarigar-server#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.18.0",
+    "mongoose": "^8.17.0",
+    "uuid": "^11.1.0",
+    "validator": "^13.15.15"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
