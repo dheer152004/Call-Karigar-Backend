@@ -17,6 +17,7 @@ const corsOptions = {
   origin: [
     'http://localhost:3000',    // React development server
     'http://localhost:3001',    // Alternative React port
+    'http://localhost:5173',    // Alternative React port
     'http://localhost:8080',    // Flutter web default port
     'http://localhost:8000',    // Alternative Flutter web port
     'capacitor://localhost',    // For mobile apps using Capacitor
