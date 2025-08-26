@@ -108,9 +108,19 @@ exports.getUsers = async (req, res) => {
       return res.status(403).json({ message: 'Access denied: Admin only' });
     }
 
-    const users = await User.find()
-      .select('-password')
-      .sort({ createdAt: -1 }); // Sort by newest first
+  // Parse page and limit from query params, default to page 1 and limit 30
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 30;
+    const skip = (page - 1) * limit;
+    // Fetch users with pagination
+    const [users, total] = await Promise.all([
+      User.find()
+        .select('-password')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments()
+    ]);
 
     // Format the response
     const formattedUsers = users.map(user => ({
