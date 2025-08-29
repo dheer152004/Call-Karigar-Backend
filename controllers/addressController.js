@@ -15,13 +15,10 @@ exports.createAddress = async (req, res) => {
         console.log('Creating address with data:', req.body);
         console.log('User ID from token:', req.user.id);
 
-        // Check if an address already exists for this user
-        const existingAddress = await Address.findOne({ userId: req.user.id });
-        if (existingAddress) {
-            return res.status(400).json({
-                error: 'User can only have one address. Please update the existing one.',
-                existingAddressId: existingAddress._id
-            });
+        // If this is the user's first address, make it primary
+        const existingAddresses = await Address.find({ userId: req.user.id });
+        if (existingAddresses.length === 0) {
+            req.body.isPrimary = true;
         }
 
         if (!req.body || !req.body.label || !req.body.addressLine) {

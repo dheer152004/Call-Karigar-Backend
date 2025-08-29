@@ -73,20 +73,33 @@ exports.validateService = (req, res, next) => {
 };
 
 exports.validateLogin = (req, res, next) => {
-    const { email, password } = req.body;
-    const errors = [];
+  const { email, phone, password } = req.body;
+  const errors = [];
 
-    if (!email || !validator.isEmail(email)) {
-        errors.push('Please provide a valid email address');
-    }
+  // Check if either email or phone is provided
+  if (!email && !phone) {
+    errors.push('Email or phone number is required');
+  }
 
-    if (!password) {
-        errors.push('Password is required');
-    }
+  // If email is provided, validate it
+  if (email && !validator.isEmail(email)) {
+    errors.push('Please provide a valid email address');
+  }
 
-    if (errors.length > 0) {
-        return res.status(400).json({ message: 'Validation failed', errors });
-    }
+  // If phone is provided, validate it
+  if (phone && !validator.isMobilePhone(phone)) {
+    errors.push('Please provide a valid phone number');
+  }
 
-    next();
+  // Password is always required
+  if (!password) {
+    errors.push('Password is required');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ message: 'Validation failed', errors });
+  }
+
+  next();
 };
+

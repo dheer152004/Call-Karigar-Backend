@@ -1,16 +1,11 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 
 const workerProfileSchema = new mongoose.Schema({
   _id: {
     type: String,
-    default: uuidv4
-  },
-  userId: {
-    type: String,
     ref: 'User',
-    required: true,
-    unique: true
+    required: true
   },
   photo: {
     type: String, // URL or file path to the profile photo

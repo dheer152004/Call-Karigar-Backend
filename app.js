@@ -71,6 +71,7 @@ const workerProfileRoutes = require('./routes/workerProfileRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const otpRoutes = require('./routes/otpRoutes');
 
 // Register routes
 app.use('/api/services', serviceRoutes);
@@ -84,6 +85,7 @@ app.use('/api/worker-profiles', workerProfileRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/otp', otpRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

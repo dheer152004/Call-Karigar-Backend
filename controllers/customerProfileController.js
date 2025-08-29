@@ -1,4 +1,5 @@
 const CustomerProfile = require('../models/CustomerProfile');
+const Address = require('../models/Addresses');
 
 // Helper function to validate customer profile data
 const validateProfileData = (data) => {
@@ -65,7 +66,7 @@ exports.createCustomerProfile = async (req, res) => {
         }
 
         // Check for existing profile
-        const existingProfile = await CustomerProfile.findOne({ userId: req.user._id });
+        const existingProfile = await CustomerProfile.findOne({ userId: req.user.id });
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
@@ -85,7 +86,7 @@ exports.createCustomerProfile = async (req, res) => {
 
         // Create profile with provided data
         const profileData = {
-            userId: req.user._id,
+            userId: req.user.id,
             phoneNumber: req.body.phoneNumber,
             address: req.body.address,
             language: req.body.language || 'en',

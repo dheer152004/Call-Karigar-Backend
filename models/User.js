@@ -32,11 +32,24 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['customer', 'worker', 'admin'],
     default: 'customer'
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other'],
+    required: true
+  },
+  isPhoneVerified: {
+    type: Boolean,
+    default: false
   }
 }, { 
   timestamps: true,
   versionKey: false 
 });
+
+// Create compound index for email and phone
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ phone: 1 }, { unique: true });
 
 const bcrypt = require('bcryptjs');
 
