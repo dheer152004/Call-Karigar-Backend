@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Call Karigar</title>
     <link rel="stylesheet" href="/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .dashboard {
             max-width: 1200px;
@@ -26,6 +27,27 @@
             font-size: 1.5rem;
             color: #333;
         }
+        .header-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .profile-btn {
+            padding: 0.5rem 1rem;
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        .profile-btn:hover {
+            background-color: #0b5ed7;
+            color: white;
+        }
         .logout-btn {
             padding: 0.5rem 1rem;
             background-color: #dc3545;
@@ -33,6 +55,9 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .stats-grid {
             display: grid;
@@ -93,7 +118,14 @@
     <div class="dashboard">
         <div class="header">
             <h2 class="welcome-text">Welcome Admin, <span id="userName">Admin</span></h2>
-            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div class="header-buttons">
+                <a href="/admin/complete-profile.html" class="profile-btn">
+                    <i class="fas fa-user"></i> View Profile
+                </a>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
         </div>
 
         <div class="stats-grid">

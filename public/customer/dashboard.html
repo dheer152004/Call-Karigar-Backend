@@ -2,9 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="vi        <div class="header">
+            <h2 class="welcome-text">Welcome, <span id="userName">Customer</span></h2>
+            <div class="header-buttons">
+                <a href="/customer/profile.html" class="profile-btn">
+                    <i class="fas fa-user"></i> View Profile
+                </a>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>rt" content="width=device-width, initial-scale=1.0">
     <title>Customer Dashboard - Call Karigar</title>
     <link rel="stylesheet" href="/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .dashboard {
             max-width: 1200px;
@@ -26,6 +37,27 @@
             font-size: 1.5rem;
             color: #333;
         }
+        .header-buttons {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .profile-btn {
+            padding: 0.5rem 1rem;
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        .profile-btn:hover {
+            background-color: #0b5ed7;
+            color: white;
+        }
         .logout-btn {
             padding: 0.5rem 1rem;
             background-color: #dc3545;
@@ -33,6 +65,9 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .services-grid {
             display: grid;

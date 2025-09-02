@@ -11,18 +11,20 @@ try {
 
 // Configure routes
 const routes = {
-  '/api/users': '../routes/userRoutes',
-  '/api/services': '../routes/serviceRoutes',
-  '/api/service-categories': '../routes/categoryRoutes',
-  '/api/worker-profile': '../routes/workerProfileRoutes',
-  '/api/customer-profile': '../routes/customerProfileRoutes',
-  '/api/bookings': '../routes/bookingRoutes',
-  '/api/reviews': '../routes/reviewRoutes',
-  '/api/payments': '../routes/paymentRoutes',
-  '/api/notifications': '../routes/notificationRoutes',
-  '/api/worker-documents': '../routes/workerDocumentRoutes',
-  '/api/worker-services': '../routes/workerServiceRoutes',
-  '/api/addresses': '../routes/addressRoutes'
+  '/api/auth': '../modules/auth/auth.routes',
+  '/api/users': '../modules/user/user.routes',
+  '/api/otp': '../modules/otp/otp.routes',
+  '/api/notifications': '../modules/notifications/notification.routes',
+  '/api/service-categories': '../modules/serviceCategories/serviceCategory.routes',
+  '/api/services': '../modules/serviceCategories/servicess/service.routes',
+  '/api/addresses': '../modules/address/address.routes',
+  '/api/customer-profiles': '../modules/user/customer/customerProfile.routes',
+  '/api/worker-profiles': '../modules/user/worker/workerProfile/workerProfile.routes',
+  '/api/worker-documents': '../modules/user/worker/workerDocuments/workerDocuments.routes',
+  '/api/worker-services': '../modules/user/worker/workerService/workerService.routes',
+  '/api/bookings': '../modules/booking/booking.routes',
+  '/api/payments': '../modules/payment/payment.routes',
+  '/api/reviews': '../modules/review/review.routes'
 };
 
 // Register routes
@@ -54,17 +56,37 @@ const PORT = process.env.PORT || 5000;
 // Set higher limit for event listeners
 require('events').EventEmitter.defaultMaxListeners = 15;
 
-// Create HTTP server
-const server = app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Try accessing: http://localhost:${PORT}/login.html`);
-  console.log(`Or alternative URL: http://localhost:${PORT}/login`);
-});
+function startServer(port) {
+  // Validate port number
+  port = parseInt(port);
+  if (port >= 65536) {
+    console.error('No available ports found in range');
+    process.exit(1);
+  }
 
-// Handle server errors
-server.on('error', (error) => {
-  console.error('Server error:', error);
-});
+  // Create HTTP server
+  const server = app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`Try accessing: http://localhost:${port}/login.html`);
+    console.log(`Or alternative URL: http://localhost:${port}/login`);
+  });
+
+  // Handle server errors
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.log(`Port ${port} is busy, trying port ${port + 1}...`);
+      server.close();
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', error);
+    }
+  });
+  
+  return server;
+}
+
+// Start the server with initial port
+const server = startServer(PORT);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

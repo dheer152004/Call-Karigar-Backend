@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Profile - Call Kaarigar</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .profile-photo-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto;
+        }
+        .profile-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 4px solid white;
+            object-fit: cover;
+        }
+        .photo-edit-btn {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: white;
+            border-radius: 50%;
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .form-section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .verification-badge {
+            background: #e9ecef;
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .verification-badge.verified {
+            background: #d4edda;
+            color: #155724;
+        }
+        .verification-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .skill-badge {
+            font-size: 0.9rem;
+            margin: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="profile-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-4 text-center">
+                    <div class="profile-photo-container">
+                        <img src="/assets/default-worker.jpg" alt="Profile Photo" class="profile-photo" id="profilePhoto">
+                        <button class="btn btn-light btn-sm photo-edit-btn" onclick="document.getElementById('photoInput').click()">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                        <input type="file" id="photoInput" hidden accept="image/*">
+                    </div>
+                </div>
+                <div class="col-md-8 d-flex justify-content-between">
+                    <div>
+                        <h2 id="usernamePlaceholder">Loading...</h2>
+                        <p class="mb-0"><i class="fas fa-envelope me-2"></i><span id="emailPlaceholder">Loading...</span></p>
+                        <p class="mb-2"><i class="fas fa-phone me-2"></i><span id="phonePlaceholder">Loading...</span></p>
+                        <div id="verificationStatus" class="verification-badge pending">
+                            <i class="fas fa-clock"></i>
+                            <span>Verification Pending</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button onclick="logout()" class="btn btn-danger">
+                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mb-5">
+        <form id="profileForm" class="needs-validation" novalidate>
+            <!-- Personal Information -->
+            <div class="form-section">
+                <h3 class="mb-4">Personal Information</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="fullName" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Professional Bio</label>
+                        <textarea class="form-control" id="bio" rows="3" maxlength="1000" 
+                            placeholder="Describe your experience, expertise, and the services you offer..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills and Services -->
+            <div class="form-section">
+                <h3 class="mb-4">Skills and Services</h3>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Select Your Skills</label>
+                        <div id="skillsContainer" class="mb-3"></div>
+                        <div id="selectedSkills" class="mb-3"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Years of Experience</label>
+                        <input type="number" class="form-control" id="experience" min="0" max="50" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Maximum Jobs Per Day</label>
+                        <input type="number" class="form-control" id="maxJobsPerDay" min="1" max="10" value="5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Information -->
+            <div class="form-section">
+                <h3 class="mb-4">Address Information</h3>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Address Line</label>
+                        <input type="text" class="form-control" id="addressLine" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">City</label>
+                        <input type="text" class="form-control" id="city" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">State</label>
+                        <select class="form-select" id="state" required>
+                            <option value="">Select State</option>
+                            <!-- Indian states will be populated via JavaScript -->
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Postal Code</label>
+                        <input type="text" class="form-control" id="postalCode" required pattern="[0-9]{6}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Country</label>
+                        <input type="text" class="form-control" id="country" value="India" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document Upload -->
+            <div class="form-section">
+                <h3 class="mb-4">Document Verification</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">ID Proof (Aadhar/PAN)</label>
+                        <input type="file" class="form-control" id="idProof" accept="image/*,.pdf" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Address Proof</label>
+                        <input type="file" class="form-control" id="addressProof" accept="image/*,.pdf" required>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Professional Certificates (if any)</label>
+                        <input type="file" class="form-control" id="certificates" accept="image/*,.pdf" multiple>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences -->
+            <div class="form-section">
+                <h3 class="mb-4">Preferences</h3>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Preferred Language</label>
+                        <select class="form-select" id="language">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoAcceptJobs">
+                            <label class="form-check-label" for="autoAcceptJobs">Auto-accept Jobs</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="notificationsEnabled" checked>
+                            <label class="form-check-label" for="notificationsEnabled">Enable Notifications</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary btn-lg px-5">Submit for Verification</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // List of Indian states
+        const indianStates = [
+            'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
+            'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+            'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+            'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
+        ];
+
+        // Populate states dropdown
+        const stateSelect = document.getElementById('state');
+        indianStates.forEach(state => {
+            const option = document.createElement('option');
+            option.value = state;
+            option.textContent = state;
+            stateSelect.appendChild(option);
+        });
+
+        // Handle profile photo upload
+        document.getElementById('photoInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('profilePhoto').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Load available skills
+        async function loadSkills() {
+            try {
+                const response = await fetch('/api/services/categories');
+                const data = await response.json();
+                if (data.success) {
+                    const skillsContainer = document.getElementById('skillsContainer');
+                    data.data.forEach(skill => {
+                        const badge = document.createElement('div');
+                        badge.className = 'badge bg-light text-dark skill-badge m-1';
+                        badge.innerHTML = `
+                            <input type="checkbox" class="btn-check" id="skill_${skill._id}" autocomplete="off">
+                            <label class="btn btn-outline-primary btn-sm" for="skill_${skill._id}">${skill.name}</label>
+                        `;
+                        skillsContainer.appendChild(badge);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading skills:', error);
+            }
+        }
+
+        // Form submission
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!this.checkValidity()) {
+                e.stopPropagation();
+                this.classList.add('was-validated');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('fullName', document.getElementById('fullName').value);
+            formData.append('username', document.getElementById('username').value);
+            formData.append('bio', document.getElementById('bio').value);
+            formData.append('experience', document.getElementById('experience').value);
+            formData.append('maxJobsPerDay', document.getElementById('maxJobsPerDay').value);
+
+            // Address
+            const address = {
+                addressLine: document.getElementById('addressLine').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                postalCode: document.getElementById('postalCode').value,
+                country: document.getElementById('country').value
+            };
+            formData.append('address', JSON.stringify(address));
+
+            // Preferences
+            const preferences = {
+                language: document.getElementById('language').value,
+                notifications: document.getElementById('notificationsEnabled').checked,
+                availability: {
+                    autoAccept: document.getElementById('autoAcceptJobs').checked,
+                    maxJobsPerDay: document.getElementById('maxJobsPerDay').value
+                }
+            };
+            formData.append('preferences', JSON.stringify(preferences));
+
+            // Files
+            const photoInput = document.getElementById('photoInput');
+            if (photoInput.files[0]) {
+                formData.append('photo', photoInput.files[0]);
+            }
+            formData.append('idProof', document.getElementById('idProof').files[0]);
+            formData.append('addressProof', document.getElementById('addressProof').files[0]);
+            
+            const certificates = document.getElementById('certificates').files;
+            for (let i = 0; i < certificates.length; i++) {
+                formData.append('certificates', certificates[i]);
+            }
+
+            try {
+                const response = await fetch('/api/worker/profile', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update profile');
+                }
+
+                const result = await response.json();
+                alert('Profile submitted for verification!');
+                window.location.href = '/worker/dashboard';
+            } catch (error) {
+                alert('Error updating profile: ' + error.message);
+            }
+        });
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/worker/profile', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load profile data');
+                }
+
+                const data = await response.json();
+                if (data.success && data.data) {
+                    const profile = data.data;
+                    document.getElementById('usernamePlaceholder').textContent = profile.username;
+                    document.getElementById('emailPlaceholder').textContent = profile.email;
+                    document.getElementById('phonePlaceholder').textContent = profile.phoneNumber;
+                    document.getElementById('fullName').value = profile.fullName || '';
+                    document.getElementById('username').value = profile.username || '';
+                    document.getElementById('bio').value = profile.bio || '';
+                    
+                    if (profile.photo) {
+                        document.getElementById('profilePhoto').src = profile.photo;
+                    }
+
+                    // Update verification status
+                    const verificationBadge = document.getElementById('verificationStatus');
+                    if (profile.isVerified) {
+                        verificationBadge.className = 'verification-badge verified';
+                        verificationBadge.innerHTML = '<i class="fas fa-check-circle"></i><span>Verified</span>';
+                    }
+
+                    if (profile.address) {
+                        document.getElementById('addressLine').value = profile.address.addressLine || '';
+                        document.getElementById('city').value = profile.address.city || '';
+                        document.getElementById('state').value = profile.address.state || '';
+                        document.getElementById('postalCode').value = profile.address.postalCode || '';
+                    }
+
+                    if (profile.preferences) {
+                        document.getElementById('language').value = profile.preferences.language || 'en';
+                        document.getElementById('notificationsEnabled').checked = profile.preferences.notifications !== false;
+                        if (profile.preferences.availability) {
+                            document.getElementById('autoAcceptJobs').checked = profile.preferences.availability.autoAccept || false;
+                            document.getElementById('maxJobsPerDay').value = profile.preferences.availability.maxJobsPerDay || 5;
+                        }
+                    }
+
+                    // Load and select skills
+                    if (profile.skills && profile.skills.length > 0) {
+                        profile.skills.forEach(skillId => {
+                            const skillCheckbox = document.getElementById(`skill_${skillId}`);
+                            if (skillCheckbox) {
+                                skillCheckbox.checked = true;
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                alert('Failed to load profile data');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSkills();
+            loadUserData();
+        });
+
+        // Logout function
+        async function logout() {
+            try {
+                // Get the token
+                const token = localStorage.getItem('token');
+                
+                if (token) {
+                    // Call the backend logout endpoint
+                    const response = await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Logout failed');
+                    }
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            } finally {
+                // Always clear local storage and redirect, even if the server call fails
+                localStorage.clear(); // Clear all auth data
+                window.location.href = '/auth/login';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -21,9 +21,10 @@ const corsOptions = {
     'http://localhost:8080',    // Flutter web default port
     'http://localhost:8000',    // Alternative Flutter web port
     'capacitor://localhost',    // For mobile apps using Capacitor
-    'http://localhost',         // Generic localhost
+    'http://localhost', 
+    'https://localhost',        // Generic localhost
+    'http://callkaarigar.onrender.com',    // Production domain (HTTP)
     'https://callkaarigar.onrender.com',  // Production domain
-    'http://callkaarigar.onrender.com'    // Production domain (HTTP)
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -37,8 +38,24 @@ const corsOptions = {
   maxAge: 86400      // Cache preflight request results for 24 hours
 };
 
-// Security middleware
-app.use(helmet());
+// Security middleware with configurations for static files
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -46,7 +63,8 @@ const limiter = rateLimit({
   max: 100 // limit each IP to 100 requests per windowMs
 });
 
-// Apply rate limiting to all routes
+// Apply rate limiting to API routes only
+app.use('/api', limiter);
 app.use(limiter);
 
 // CORS and parsing middleware
@@ -59,33 +77,74 @@ const publicPath = path.resolve(__dirname, 'public');
 console.log('Public directory absolute path:', publicPath);
 app.use(express.static(publicPath));
 
-// Import routes
-const serviceRoutes = require('./routes/serviceRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
-const workerServiceRoutes = require('./routes/workerServiceRoutes');
-const userRoutes = require('./routes/userRoutes');
-const addressRoutes = require('./routes/addressRoutes');
-const bookingRoutes = require('./routes/bookingRoutes');
-const customerProfileRoutes = require('./routes/customerProfileRoutes');
-const workerProfileRoutes = require('./routes/workerProfileRoutes');
-const reviewRoutes = require('./routes/reviewRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const otpRoutes = require('./routes/otpRoutes');
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-// Register routes
-app.use('/api/services', serviceRoutes);
-app.use('/api/service-categories', categoryRoutes);
-app.use('/api/worker-services', workerServiceRoutes);
+// Serve HTML files for different roles
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(publicPath, 'login.html'));
+});
+
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(publicPath, 'register.html'));
+});
+
+app.get('/admin/dashboard', (req, res) => {
+    res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
+});
+
+app.get('/customer/dashboard', (req, res) => {
+    res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
+});
+
+app.get('/worker/dashboard', (req, res) => {
+    res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
+});
+
+// Import routes from modules
+const authRoutes = require('./modules/auth/auth.routes');
+const userRoutes = require('./modules/user/user.routes');
+const otpRoutes = require('./modules/otp/otp.routes');
+
+const notificationRoutes = require('./modules/notifications/notification.routes');
+
+const serviceCategoryRoutes = require('./modules/serviceCategories/serviceCategory.routes');
+const serviceRoutes = require('./modules/serviceCategories/servicess/service.routes');
+
+const addressRoutes = require('./modules/address/address.routes');
+
+const customerProfileRoutes = require('./modules/user/customer/customerProfile.routes');
+const workerProfileRoutes = require('./modules/user/worker/workerProfile/workerProfile.routes');
+const workerDocumentRoutes = require('./modules/user/worker/workerDocuments/workerDocuments.routes');
+const workerServiceRoutes = require('./modules/user/worker/workerService/workerService.routes');
+
+const bookingRoutes = require('./modules/booking/booking.routes');
+const paymentRoutes = require('./modules/payment/payment.routes');
+const reviewRoutes = require('./modules/review/review.routes');
+
+// Register API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/addresses', addressRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/customer-profiles', customerProfileRoutes);
-app.use('/api/worker-profiles', workerProfileRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/otp', otpRoutes);
+
+app.use('/api/notifications', notificationRoutes);
+
+app.use('/api/service-categories', serviceCategoryRoutes);
+app.use('/api/services', serviceRoutes);
+
+app.use('/api/addresses', addressRoutes);
+
+// Profile routes
+const adminProfileRoutes = require('./modules/user/admin/admin.routes');
+app.use('/api/admin-profile', adminProfileRoutes);
+app.use('/api/customer-profile', customerProfileRoutes);
+app.use('/api/worker-profile', workerProfileRoutes);
+app.use('/api/worker-documents', workerDocumentRoutes);
+app.use('/api/worker-services', workerServiceRoutes);
+
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
