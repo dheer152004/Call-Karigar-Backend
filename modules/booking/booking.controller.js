@@ -7,10 +7,10 @@ const Payment = require('../payment/payment.model');
 const bookingService = require('./booking.service');
 
 exports.createBooking = async (req, res) => {
+    console.log('Creating booking with user:', req.user);
+    console.log('Request body:', req.body);
+    
     try {
-        console.log('Creating booking with user:', req.user);
-        console.log('Request body:', req.body);
-        
         // Check if user is a customer
         if (req.user.role !== 'customer') {
             return res.status(403).json({
@@ -27,6 +27,38 @@ exports.createBooking = async (req, res) => {
                 success: false,
                 message: 'Missing required fields',
                 required: ['workerId', 'workerServiceId', 'bookingDate', 'timeSlot', 'address_id', 'paymentMethod']
+            });
+        }
+
+        // Validate workerId format and convert if needed
+        let validatedWorkerId;
+        try {
+            if (!mongoose.Types.ObjectId.isValid(workerId)) {
+                // If it's not a valid ObjectId, check if it's a valid UUID
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+                if (!uuidRegex.test(workerId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid workerId format. Must be a valid UUID'
+                    });
+                }
+                validatedWorkerId = workerId;
+            } else {
+                // Convert ObjectId to the corresponding User's UUID
+                const worker = await mongoose.model('User').findOne({ _id: workerId });
+                if (!worker) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'Worker not found'
+                    });
+                }
+                validatedWorkerId = worker._id; // This will be the UUID
+            }
+        } catch (err) {
+            return res.status(400).json({
+                success: false,
+                message: 'Error validating worker ID',
+                error: err.message
             });
         }
 
@@ -50,7 +82,7 @@ exports.createBooking = async (req, res) => {
         }
 
         // Verify that the worker ID matches the worker service
-        if (workerService.workerId !== workerId) {
+        if (workerService.workerId !== validatedWorkerId) {
             return res.status(400).json({
                 success: false,
                 message: 'Worker ID does not match the service provider'
@@ -92,7 +124,7 @@ exports.createBooking = async (req, res) => {
         // Create booking with all required fields
         const booking = await Booking.create({
             customerId: req.user._id.toString(),
-            workerId: workerId.toString(),
+            workerId: validatedWorkerId.toString(),
             workerServiceId: workerServiceId.toString(),
             address_id,
             scheduledTimeSlot: {
@@ -112,7 +144,7 @@ exports.createBooking = async (req, res) => {
             const payment = await Payment.create({
                 bookingId: booking._id.toString(),
                 customerId: req.user._id.toString(),
-                workerId: workerId.toString(),
+                workerId: validatedWorkerId.toString(),
                 amount: totalAmount,
                 status: 'pending'
             });

@@ -14,25 +14,14 @@ const app = express();
 
 // CORS Configuration
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',    // React development server
-    'http://localhost:3001',    // Alternative React port
-    'http://localhost:5173',    // Alternative React port
-    'http://localhost:8080',    // Flutter web default port
-    'http://localhost:8000',    // Alternative Flutter web port
-    'capacitor://localhost',    // For mobile apps using Capacitor
-    'http://localhost', 
-    'https://localhost',        // Generic localhost
-    'http://callkaarigar.onrender.com',    // Production domain (HTTP)
-    'https://callkaarigar.onrender.com',  // Production domain
-  ],
+  origin: '*',  // Allow all origins - WARNING: This should be properly restricted in production,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
     'X-Requested-With',
     'Accept',
-    'Origin'
+    'Origin',
   ],
   credentials: true,  // Allow credentials (cookies, authorization headers, etc)
   maxAge: 86400      // Cache preflight request results for 24 hours
