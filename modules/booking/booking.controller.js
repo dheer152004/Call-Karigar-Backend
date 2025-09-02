@@ -110,7 +110,9 @@ exports.createBooking = async (req, res) => {
         if (paymentMethod === 'online') {
             // Create payment record
             const payment = await Payment.create({
-                bookingId: booking._id,
+                bookingId: booking._id.toString(),
+                customerId: req.user._id.toString(),
+                workerId: workerId.toString(),
                 amount: totalAmount,
                 status: 'pending'
             });
