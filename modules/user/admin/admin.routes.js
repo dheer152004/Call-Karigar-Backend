@@ -70,16 +70,16 @@ const checkProfileStatus = async (req, res, next) => {
         const AdminProfile = require('./admin.model');
         const profile = await AdminProfile.findOne({ userId: req.user.id });
         
-        if (profile && req.path === '/complete-profile') {
+        if (profile && req.path === '/update-profile') {
             return res.redirect('/admin/dashboard');
         }
         
-        if (!profile && !req.path.match(/^\/complete-profile|^\/create-profile/)) {
+        if (!profile && !req.path.match(/^\/update-profile|^\/create-profile/)) {
             return res.status(303).json({
                 success: false,
                 message: 'Please complete your profile first',
                 data: {
-                    redirectTo: '/admin/complete-profile'
+                    redirectTo: '/admin/update-profile'
                 }
             });
         }
@@ -98,7 +98,7 @@ router.use((req, res, next) => {
 });
 
 // Profile completion route
-router.get('/complete-profile', async (req, res) => {
+router.get('/update-profile', async (req, res) => {
     const AdminProfile = require('./admin.model');
     const profile = await AdminProfile.findOne({ userId: req.user.id });
     

@@ -12,6 +12,22 @@ dotenv.config();
 
 const app = express();
 
+// Seed coupons in development
+if (process.env.NODE_ENV === 'development') {
+    const seedCoupons = require('./modules/coupon/coupon.seed');
+    seedCoupons().then(() => {
+        console.log('Coupon seeding completed');
+    }).catch(err => {
+        console.error('Coupon seeding failed:', err);
+    });
+}
+
+// Routes
+const couponRoutes = require('./modules/coupon/coupon.routes');
+
+// Mount routes
+app.use('/api/coupons', couponRoutes);
+
 // CORS Configuration
 const corsOptions = {
   origin: '*',  // Allow all origins - WARNING: This should be properly restricted in production,
@@ -130,6 +146,10 @@ app.use('/api/customer-profile', customerProfileRoutes);
 app.use('/api/worker-profile', workerProfileRoutes);
 app.use('/api/worker-documents', workerDocumentRoutes);
 app.use('/api/worker-services', workerServiceRoutes);
+
+// Worker verification routes
+const workerVerificationRoutes = require('./modules/user/worker/workerProfile/workerVerification.routes');
+app.use('/api/admin/workers', workerVerificationRoutes);
 
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);

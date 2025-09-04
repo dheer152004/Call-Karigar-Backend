@@ -25,12 +25,29 @@ const generateUsername = async (name, Model, isWorker = false) => {
 };
 
 const createUserProfile = async (user, addressData = null) => {
-    // For admin users, we don't create a profile
+    // For admin users, create a profile with random data
     if (user.role === 'admin') {
         const username = `admin.${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        const adminProfile = new AdminProfile({
+            userId: user._id,
+            username,
+            photo: `admin-${Math.floor(Math.random() * 5)}.jpg`,
+            bio: `Senior administrator with ${Math.floor(Math.random() * 5 + 2)} years of experience`,
+            department: ['Operations', 'Support', 'Management'][Math.floor(Math.random() * 3)],
+            status: 'active',
+            permissions: ['manage_users', 'manage_workers', 'manage_services', 'manage_bookings'],
+            preferences: {
+                language: 'en',
+                notifications: true,
+                theme: 'dark'
+            }
+        });
+        
+        const savedProfile = await adminProfile.save();
         return {
             username,
-            profile: null
+            profile: savedProfile,
+            isProfileComplete: true
         };
     }
 
@@ -67,22 +84,24 @@ const createUserProfile = async (user, addressData = null) => {
     if (user.role === 'customer') {
         const username = await generateUsername(user.name, CustomerProfile);
         
-        // Create new profile document
+        // Create new profile document with random data
         const newProfile = new CustomerProfile({
             ...profileData,
             username,
-            photo: 'default-profile.jpg',
+            photo: `profile-${Math.floor(Math.random() * 10)}.jpg`,
+            bio: `Hi, I'm ${user.name}!`,
+            status: 'active',
             preferences: {
                 ...profileData.preferences,
-                currency: 'INR'
+                currency: 'INR',
+                theme: Math.random() > 0.5 ? 'light' : 'dark'
             },
             stats: {
-                totalBookings: 0,
-                completedBookings: 0,
-                cancelledBookings: 0,
-                totalSpent: 0
-            },
-            status: 'active'
+                totalBookings: Math.floor(Math.random() * 10),
+                completedBookings: Math.floor(Math.random() * 8),
+                cancelledBookings: Math.floor(Math.random() * 2),
+                totalSpent: Math.floor(Math.random() * 10000)
+            }
         });
 
         // Save the profile
@@ -90,7 +109,8 @@ const createUserProfile = async (user, addressData = null) => {
 
         return {
             username,
-            profile: savedProfile
+            profile: savedProfile,
+            isProfileComplete: true
         };
     } else if (user.role === 'worker') {
         const username = await generateUsername(user.name, WorkerProfile, true);
@@ -101,27 +121,27 @@ const createUserProfile = async (user, addressData = null) => {
             username,
             phoneNumber: user.phone,
             email: user.email,
-            photo: 'default-worker.jpg',
-            bio: '',
-            skills: [],
-            status: 'pending',
-            isVerified: false,
+            photo: `worker-${Math.floor(Math.random() * 10)}.jpg`,
+            bio: `Professional service provider with ${Math.floor(Math.random() * 10 + 1)} years of experience`,
+            skills: ['Plumbing', 'Electrical', 'Carpentry', 'Painting'].slice(0, Math.floor(Math.random() * 3 + 1)),
+            status: 'active',
+            isVerified: true,
             preferences: {
                 language: 'en',
                 notifications: true,
                 availability: {
-                    autoAccept: false,
-                    maxJobsPerDay: 5
+                    autoAccept: Math.random() > 0.5,
+                    maxJobsPerDay: Math.floor(Math.random() * 5 + 3)
                 }
             },
             stats: {
-                totalJobs: 0,
-                completedJobs: 0,
-                cancelledJobs: 0,
-                totalEarnings: 0
+                totalJobs: Math.floor(Math.random() * 50),
+                completedJobs: Math.floor(Math.random() * 40),
+                cancelledJobs: Math.floor(Math.random() * 5),
+                totalEarnings: Math.floor(Math.random() * 50000)
             },
-            ratingAverage: 0,
-            ratingCount: 0
+            ratingAverage: (Math.random() * 2 + 3).toFixed(1),
+            ratingCount: Math.floor(Math.random() * 30)
         });
 
         // Save the profile
@@ -260,7 +280,7 @@ exports.registerUser = async (req, res) => {
                     },
                     profile,
                     token,
-                    redirectTo: `/${user.role}/complete-profile`
+                    redirectTo: `/${user.role}/update-profile`
                 }
             });
 
@@ -415,9 +435,9 @@ exports.loginUser = async (req, res) => {
                         phone: user.phone,
                         role: user.role
                     },
-                    redirectTo: user.role === 'worker' ? '/worker/complete-profile' : 
-                               user.role === 'customer' ? '/customer/complete-profile' : 
-                               '/admin/complete-profile'
+                    redirectTo: user.role === 'worker' ? '/worker/update-profile' : 
+                               user.role === 'customer' ? '/customer/update-profile' : 
+                               '/admin/update-profile'
                 }
             });
         }
@@ -435,6 +455,23 @@ exports.loginUser = async (req, res) => {
 
         // Send response with profile-specific redirect
         // Prepare response based on user role
+        // Prepare profile data
+        const profileData = profile ? {
+            username: profile.username,
+            photo: profile.photo || 'default-profile.jpg',
+            status: profile.status,
+            bio: profile.bio,
+            preferences: profile.preferences,
+            stats: profile.stats,
+            ...(profile.address && { address: profile.address }),
+            ...(user.role === 'worker' && {
+                skills: profile.skills,
+                isVerified: profile.isVerified,
+                ratingAverage: profile.ratingAverage,
+                ratingCount: profile.ratingCount
+            })
+        } : null;
+
         const responseData = {
             success: true,
             message: 'Login successful',
@@ -448,14 +485,33 @@ exports.loginUser = async (req, res) => {
                     role: user.role,
                     status: user.status,
                     lastLogin: user.lastLogin,
-                    ...(profile ? { username: profile.username } : {})
+                    createdAt: user.createdAt,
+                    isEmailVerified: user.isEmailVerified || false,
+                    isPhoneVerified: user.isPhoneVerified || false,
+                    username: profile?.username
                 },
-                ...(profile ? { profile } : {}),
-                redirectTo: user.role === 'admin' ? 
-                    '/admin/dashboard' : 
-                    user.role === 'worker' ? 
-                        '/worker/dashboard' : 
-                        '/customer/dashboard'
+                profile: profileData,
+                navigation: {
+                    redirectTo: user.role === 'admin' ? 
+                        '/admin/dashboard' : 
+                        user.role === 'worker' ? 
+                            '/worker/update-profile' : 
+                            '/customer/update-profile',
+                    allowedRoutes: [
+                        `/${user.role}/dashboard`,
+                        `/${user.role}/profile`,
+                        `/${user.role}/settings`,
+                        ...(user.role === 'customer' ? ['/customer/bookings', '/customer/payments'] : []),
+                        ...(user.role === 'worker' ? ['/worker/jobs', '/worker/earnings', '/worker/availability'] : []),
+                        ...(user.role === 'admin' ? ['/admin/users', '/admin/services', '/admin/reports'] : [])
+                    ]
+                },
+                settings: {
+                    theme: profile?.preferences?.theme || 'light',
+                    language: profile?.preferences?.language || 'en',
+                    notifications: profile?.preferences?.notifications ?? true,
+                    currency: profile?.preferences?.currency || 'INR'
+                }
             }
         };
 
@@ -485,24 +541,24 @@ exports.loginUser = async (req, res) => {
 };
 
 // Logout user
-exports.logoutUser = async (req, res) => {
-    try {
-        // Since we're using JWT, we don't need to do anything server-side
-        // The client should remove the token from storage
+// exports.logoutUser = async (req, res) => {
+//     try {
+//         // Since we're using JWT, we don't need to do anything server-side
+//         // The client should remove the token from storage
         
-        res.status(200).json({
-            success: true,
-            message: 'Logged out successfully',
-            data: null
-        });
-    } catch (error) {
-        console.error('Logout error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error during logout'
-        });
-    }
-};
+//         res.status(200).json({
+//             success: true,
+//             message: 'Logged out successfully',
+//             data: null
+//         });
+//     } catch (error) {
+//         console.error('Logout error:', error);
+//         res.status(500).json({
+//             success: false,
+//             message: 'Error during logout'
+//         });
+//     }
+// };
 
 // Logout user (client-side token removal)
 exports.logoutUser = async (req, res) => {

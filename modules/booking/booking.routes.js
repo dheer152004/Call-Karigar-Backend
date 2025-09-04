@@ -10,6 +10,7 @@ const {
     updateBooking,
     cancelBooking
 } = require('./booking.controller');
+const { updateBookingStatus } = require('./booking.service.updateStatus');
 
 // All routes are protected
 router.use(protect);
@@ -28,5 +29,8 @@ router.get('/worker', authorize('worker'), getWorkerBookings);
 router.get('/:id', getBooking);
 router.put('/:id', updateBooking);
 router.delete('/:id', cancelBooking);
+
+// Customer-specific status update route
+router.patch('/:bookingId/status', authorize('customer'), updateBookingStatus);
 
 module.exports = router;

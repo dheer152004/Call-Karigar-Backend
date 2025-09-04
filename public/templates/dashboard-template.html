@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Kaarigar - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <div class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-200 ease-in-out" id="sidebar">
+        <div class="flex flex-col h-full">
+            <!-- Logo -->
+            <div class="flex items-center justify-center h-16 border-b">
+                <h1 class="text-2xl font-bold text-blue-600">Call Kaarigar</h1>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+                <!-- Will be populated by JavaScript based on user role -->
+            </nav>
+
+            <!-- User Profile Section -->
+            <div class="p-4 border-t">
+                <div class="flex items-center space-x-3">
+                    <img id="userPhoto" src="/default-profile.jpg" class="w-10 h-10 rounded-full object-cover">
+                    <div>
+                        <p id="userName" class="font-medium text-gray-800"></p>
+                        <p id="userRole" class="text-sm text-gray-500"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 min-h-screen">
+        <!-- Top Bar -->
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6">
+            <button id="menuToggle" class="lg:hidden">
+                <i class="fas fa-bars text-gray-600 text-xl"></i>
+            </button>
+            <div class="flex items-center space-x-4">
+                <button class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-bell text-gray-600"></i>
+                </button>
+                <button class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-cog text-gray-600"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="p-6">
+            <!-- Dashboard Content -->
+            <div id="dashboardContent">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="fixed top-4 right-4 z-50 transform transition-transform duration-300 translate-x-full">
+        <div class="bg-white rounded-lg shadow-lg p-4 max-w-md">
+            <div class="flex items-start">
+                <div class="flex-shrink-0">
+                    <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
+                </div>
+                <div class="ml-3 w-0 flex-1">
+                    <p id="toastMessage" class="text-sm font-medium text-gray-900"></p>
+                </div>
+                <div class="ml-4 flex-shrink-0 flex">
+                    <button onclick="closeToast()" class="inline-flex text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard-common.js"></script>
+    <script id="roleSpecificScript"></script>
+</body>
+</html>

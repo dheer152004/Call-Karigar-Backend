@@ -34,6 +34,27 @@ const BookingSchema = new mongoose.Schema({
         ref: 'Address',
         required: true
     },
+    discount: {
+        couponCode: {
+            type: String,
+            default: null
+        },
+        percentage: {
+            type: Number,
+            min: 0,
+            max: 100,
+            default: 0
+        },
+        discountAmount: {
+            type: Number,
+            min: 0,
+            default: 0
+        }
+    },
+    subTotal: {
+        type: Number,
+        required: true
+    },
     totalAmount: {
         type: Number,
         required: true

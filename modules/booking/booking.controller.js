@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 const Booking = require('./booking.model');
-const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model');
-const CustomerProfile = require('../user/customer/customerProfile.model');
 const WorkerService = require('../user/worker/workerService/workerService.model');
 const Payment = require('../payment/payment.model');
+const Coupon = require('../coupon/coupon.model');
 const bookingService = require('./booking.service');
+const { updateBookingStatus } = require('./booking.service.updateStatus');
 
 exports.createBooking = async (req, res) => {
     console.log('Creating booking with user:', req.user);
@@ -72,7 +72,10 @@ exports.createBooking = async (req, res) => {
 
         // Get worker service and service details
         const workerService = await WorkerService.findById(workerServiceId)
-            .populate('serviceId');
+            .populate({
+                path: 'serviceId',
+                select: 'title description baseprice'
+            });
             
         if (!workerService) {
             return res.status(404).json({
@@ -82,7 +85,7 @@ exports.createBooking = async (req, res) => {
         }
 
         // Verify that the worker ID matches the worker service
-        if (workerService.workerId !== validatedWorkerId) {
+        if (workerService.workerId.toString() !== validatedWorkerId.toString()) {
             return res.status(400).json({
                 success: false,
                 message: 'Worker ID does not match the service provider'
@@ -118,8 +121,97 @@ exports.createBooking = async (req, res) => {
             });
         }
 
-        // Calculate total amount
-        const totalAmount = workerService.customPrice || workerService.serviceId.basePrice;
+        // Calculate amounts and discounts
+        const serviceBasePrice = workerService.serviceId.baseprice;
+        const baseAmount = workerService.customPrice || serviceBasePrice;
+        const serviceFeePercentage = 0.15; // 15%
+        const subTotal = baseAmount + (baseAmount * serviceFeePercentage);
+
+        // Initialize discount object
+        const discount = {
+            couponCode: null,
+            percentage: 0,
+            discountAmount: 0
+        };
+
+        // Apply coupon discount if provided
+        if (req.body.couponCode) {
+            const searchCode = req.body.couponCode.toUpperCase();
+            console.log('Searching for coupon:', searchCode);
+            
+            // First, find any coupon with this code regardless of dates
+            const anyCoupon = await Coupon.findOne({ code: searchCode });
+            console.log('Any coupon found with this code:', anyCoupon);
+
+            // Now search with date validation
+            const currentDate = new Date();
+            console.log('Current date:', currentDate);
+            
+            const coupon = await Coupon.findOne({ 
+                code: searchCode,
+                validFrom: { $lte: currentDate },
+                validUntil: { $gte: currentDate }
+            });
+
+            console.log('Valid coupon found:', coupon);
+
+            if (!coupon) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid or expired coupon code'
+                });
+            }
+
+            // Check if coupon has reached max usage
+            if (coupon.maxUsage && coupon.usageCount >= coupon.maxUsage) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Coupon has reached maximum usage limit'
+                });
+            }
+
+            // Check minimum order value
+            if (subTotal < coupon.minOrderValue) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Minimum order value of ₹${coupon.minOrderValue} required for this coupon`
+                });
+            }
+
+            // Verify service eligibility
+            if (coupon.applicableServices && coupon.applicableServices.length > 0) {
+                const serviceId = workerService.serviceId._id;
+                if (!coupon.applicableServices.includes(serviceId)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Coupon not applicable for this service'
+                    });
+                }
+            }
+
+            // Calculate discount
+            let discountAmount = 0;
+            if (coupon.type === 'percentage') {
+                discountAmount = (subTotal * coupon.value) / 100;
+                if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+                    discountAmount = coupon.maxDiscount;
+                }
+                discount.percentage = coupon.value;
+            } else {
+                discountAmount = coupon.value;
+            }
+
+            discount.couponCode = coupon.code;
+            discount.discountAmount = discountAmount;
+
+            // Increment coupon usage
+            await Coupon.findByIdAndUpdate(coupon._id, {
+                $inc: { usageCount: 1 }
+            });
+        }
+
+        // Calculate final total amount
+        const totalAmount = subTotal - discount.discountAmount;
 
         // Create booking with all required fields
         const booking = await Booking.create({
@@ -132,6 +224,8 @@ exports.createBooking = async (req, res) => {
                 end: endTime
             },
             bookingDate: parsedBookingDate,
+            subTotal,
+            discount,
             totalAmount,
             paymentMethod,
             notes: req.body.notes,
@@ -169,12 +263,24 @@ exports.createBooking = async (req, res) => {
                 )
             ]);
 
-            // Return booking with payment details
+            // Return booking with payment details and price breakdown
             return res.status(201).json({
                 success: true,
                 data: {
                     booking,
                     payment,
+                    priceBreakdown: {
+                        serviceBasePrice: serviceBasePrice,
+                        workerServicePrice: baseAmount,
+                        serviceFee: (baseAmount * serviceFeePercentage).toFixed(2),
+                        subTotal: subTotal,
+                        discount: {
+                            couponCode: discount.couponCode,
+                            percentage: discount.percentage,
+                            discountAmount: discount.discountAmount
+                        },
+                        totalAmount: totalAmount
+                    },
                     message: 'Booking created successfully. Payment pending.'
                 }
             });

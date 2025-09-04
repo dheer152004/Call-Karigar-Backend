@@ -10,8 +10,8 @@ const {
 const { protect, authorize } = require('../../../middleware/auth');
 
 // Profile completion route
-router.get('/complete-profile', protect, authorize('customer'), (req, res) => {
-    res.sendFile('customer/complete-profile.html', { root: 'public' });
+router.get('/update-profile', protect, authorize('customer'), (req, res) => {
+    res.sendFile('customer/update-profile.html', { root: 'public' });
 });
 
 // All routes are protected

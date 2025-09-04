@@ -163,23 +163,10 @@
         </div>
     </div>
 
+    <script src="/js/auth.js"></script>
     <script>
-        // Check authentication
-        const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user'));
-
-        if (!token || !user || user.role !== 'worker') {
-            window.location.href = '/login.html';
-        }
-
-        // Set user name
-        document.getElementById('userName').textContent = user.name;
-
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login.html';
-        }
+        // Initialize dashboard with role check
+        initDashboard('worker');
     </script>
 </body>
 </html>

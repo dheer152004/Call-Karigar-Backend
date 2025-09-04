@@ -8,7 +8,7 @@ const workerServiceSchema = new mongoose.Schema({
   },
   workerId: {
     type: String,
-    ref: 'WorkerProfile',
+    ref: 'User',
     required: true
   },
   serviceId: {

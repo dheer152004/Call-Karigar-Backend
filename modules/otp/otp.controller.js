@@ -120,11 +120,11 @@ exports.sendOTP = async (req, res) => {
         // Create notification
         await NotificationService.createNotification({
             userId,
-            type: 'verification_otp',
+            type: 'security_alert', // Using security_alert as it's a security-related verification
             category: 'account',
             title: 'OTP Sent',
             message: `Verification code sent to your ${method}: ${method === 'phone' ? normalizedPhone : normalizedEmail}`,
-            recipientRole: user.role || 'customer', // Added recipient role from user or default
+            recipientRole: user.role || 'customer',
             priority: 'high',
             metadata: {
                 method,

@@ -37,7 +37,7 @@ exports.addWorkerService = async (req, res) => {
 
         // Check if worker already offers this service
         const existingService = await WorkerService.findOne({
-            workerId: workerProfile._id,
+            workerId: workerProfile.userId,
             serviceId
         });
 
@@ -49,10 +49,10 @@ exports.addWorkerService = async (req, res) => {
         }
 
         const workerService = await WorkerService.create({
-            workerId: workerProfile._id,
+            workerId: workerProfile.userId, // Use userId instead of _id
             serviceId,
             customPrice: price,
-            experience: experience || 0,
+            experience: experience || '0 years',
             description: description || '',
             isActive: true
         });

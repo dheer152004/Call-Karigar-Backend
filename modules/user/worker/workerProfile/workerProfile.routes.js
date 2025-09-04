@@ -11,8 +11,8 @@ const {
 const { protect, authorize } = require('../../../../middleware/auth');
 
 // Profile completion route
-router.get('/complete-profile', protect, authorize('worker'), (req, res) => {
-    res.sendFile('worker/complete-profile.html', { root: 'public' });
+router.get('/update-profile', protect, authorize('worker'), (req, res) => {
+    res.sendFile('worker/update-profile.html', { root: 'public' });
 });
 
 // Add worker profile validation middleware

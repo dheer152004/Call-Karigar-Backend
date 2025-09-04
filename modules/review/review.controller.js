@@ -41,12 +41,37 @@ exports.createReview = async (req, res) => {
             });
         }
 
+        // Validate all required ratings
+        const { rating, serviceQuality, punctuality, professionalism, comment } = req.body;
+        
+        if (!rating || !serviceQuality || !punctuality || !professionalism) {
+            return res.status(400).json({
+                success: false,
+                message: 'All rating fields are required: rating, serviceQuality, punctuality, professionalism'
+            });
+        }
+
+        // Validate rating ranges
+        const ratingFields = { rating, serviceQuality, punctuality, professionalism };
+        for (const [field, value] of Object.entries(ratingFields)) {
+            if (value < 1 || value > 5) {
+                return res.status(400).json({
+                    success: false,
+                    message: `${field} must be between 1 and 5`
+                });
+            }
+        }
+
         const review = await Review.create({
             customerId: req.user._id,
             workerId: booking.workerId,
+            workerServiceId: booking.workerServiceId,
             bookingId: booking._id,
-            serviceId: booking.serviceId,
-            ...req.body
+            rating,
+            serviceQuality,
+            punctuality,
+            professionalism,
+            comment: comment || ''
         });
 
         // Update worker's rating average
