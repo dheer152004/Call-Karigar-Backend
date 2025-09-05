@@ -150,6 +150,7 @@ class NotificationService {
             title: 'New Review Received',
             message: `You have received a ${reviewData.rating}-star review from a customer.`,
             recipientRole: 'worker',
+            category: 'booking',
             metadata: {
                 reviewId: reviewData._id,
                 rating: reviewData.rating,

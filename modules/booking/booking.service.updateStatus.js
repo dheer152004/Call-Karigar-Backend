@@ -68,13 +68,13 @@ const updateBookingStatus = async (req, res) => {
         await Promise.all([
             bookingService.createBookingNotification(
                 booking,
-                status === 'cancelled' ? 'BOOKING_CANCELLED' : 'BOOKING_COMPLETED',
+                status === 'cancelled' ? 'booking_cancelled' : 'booking_completed',
                 req.user._id,
                 'customer'
             ),
             bookingService.createBookingNotification(
                 booking,
-                status === 'cancelled' ? 'BOOKING_CANCELLED' : 'BOOKING_COMPLETED',
+                status === 'cancelled' ? 'booking_cancelled' : 'booking_completed',
                 booking.workerId,
                 'worker'
             )
