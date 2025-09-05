@@ -14,23 +14,28 @@ const addressSchema = new mongoose.Schema({
   },
   label: {
     type: String, // e.g. "Home", "Office"
-    required: true
+    required: true,
+    default: "Home"
   },
   addressLine: {
     type: String,
-    required: true
+    required: true,
+    default: "Update your address"
   },
   city: {
     type: String,
-    required: true
+    required: true,
+    default: "Update your city"
   },
   state: {
     type: String,
-    required: true
+    required: true,
+    default: "Update your state"
   },
   postalCode: {
     type: String,
-    required: true
+    required: true,
+    default: "000000"
   },
   country: {
     type: String,
