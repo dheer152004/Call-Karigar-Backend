@@ -85,7 +85,7 @@ console.log('Public directory absolute path:', publicPath);
 app.use(express.static(publicPath));
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
 
 // Serve HTML files for different roles
 app.get('/login', (req, res) => {
