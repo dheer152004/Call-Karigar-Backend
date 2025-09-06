@@ -42,6 +42,26 @@ class EmailService {
         }
     }
 
+    // Generic send email method
+    async sendEmail(to, subject, text, html) {
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to,
+            subject,
+            text,
+            html: html || text.replace(/\n/g, '<br>')
+        };
+
+        try {
+            await this.transporter.sendMail(mailOptions);
+            console.log('Email sent to:', to);
+            return true;
+        } catch (error) {
+            console.error('Error sending email:', error);
+            return false;
+        }
+    }
+
     // Send welcome email
     async sendWelcomeEmail(email, name) {
         const mailOptions = {

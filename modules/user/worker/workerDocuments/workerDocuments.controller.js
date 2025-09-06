@@ -1,17 +1,12 @@
 const WorkerDocument = require('./workerDocuments.model');
+const NotificationService = require('../../../../services/notificationService');
+const User = require('../../../user/user.model');
+const emailService = require('../../../../services/emailService');
 
-// Helper function to validate required documents
-const validateDocuments = (documents) => {
-    const requiredDocs = ['aadhar', 'pan', 'drivingLicense', 'certifications'];
-    const missingDocs = requiredDocs.filter(doc => !documents[doc]);
-    
-    if (missingDocs.length > 0) {
-        return {
-            isValid: false,
-            error: `Missing required documents: ${missingDocs.join(', ')}`
-        };
-    }
-    return { isValid: true };
+// Helper function to validate file type
+const validateFileType = (fileType) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    return allowedTypes.includes(fileType);
 };
 
 // @desc    Upload worker documents
@@ -20,14 +15,28 @@ const validateDocuments = (documents) => {
 exports.uploadDocuments = async (req, res) => {
     try {
         const workerId = req.user._id;
-        const { aadhar, pan, drivingLicense, certifications } = req.body;
+        const { aadhar, pan, policeVerification, certifications } = req.body;
 
-        // Check if all required documents are provided
-        if (!aadhar || !pan || !drivingLicense || !certifications) {
-            return res.status(400).json({
-                success: false,
-                error: 'All documents (aadhar, pan, drivingLicense, certifications) are required'
-            });
+        // Validate file types
+        const documents = { aadhar, pan, policeVerification };
+        for (const [key, doc] of Object.entries(documents)) {
+            if (!validateFileType(doc.fileType)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid file type for ${key}. Allowed types: JPEG, PNG, PDF`
+                });
+            }
+        }
+
+        if (certifications && certifications.length > 0) {
+            for (const cert of certifications) {
+                if (!validateFileType(cert.fileType)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Invalid file type for certification. Allowed types: JPEG, PNG, PDF`
+                    });
+                }
+            }
         }
 
         // Try to find existing document
@@ -37,8 +46,8 @@ exports.uploadDocuments = async (req, res) => {
             // Update existing document
             workerDocument.aadhar = aadhar;
             workerDocument.pan = pan;
-            workerDocument.drivingLicense = drivingLicense;
-            workerDocument.certifications = certifications;
+            workerDocument.policeVerification = policeVerification;
+            workerDocument.certifications = certifications || [];
             workerDocument.status = 'pending';
             workerDocument.isKYCComplete = false;
             await workerDocument.save();
@@ -48,10 +57,30 @@ exports.uploadDocuments = async (req, res) => {
                 workerId,
                 aadhar,
                 pan,
-                drivingLicense,
-                certifications,
+                policeVerification,
+                certifications: certifications || [],
                 status: 'pending',
                 isKYCComplete: false
+            });
+        }
+
+        // Notify admins about new document upload
+        const admins = await User.find({ role: 'admin' });
+        for (const admin of admins) {
+            await NotificationService.createNotification({
+                userId: admin._id,
+                type: 'document_uploaded',
+                category: 'worker',
+                title: 'New Worker Documents Uploaded',
+                message: `Worker ${req.user.name} has uploaded new documents for verification.`, 
+                recipientRole: 'admin',
+                priority: 'high',
+                metadata: {
+                    workerId,
+                    workerName: req.user.name,
+                    documentId: workerDocument._id
+                },
+                actionUrl: `/admin/worker-documents/${workerDocument._id}`
             });
         }
 
@@ -69,12 +98,108 @@ exports.uploadDocuments = async (req, res) => {
     }
 };
 
+// @desc    Verify worker documents
+// @route   PATCH /api/worker-documents/:id/verify
+// @access  Private (Admin only)
+exports.verifyDocuments = async (req, res) => {
+    try {
+        const { status, remarks } = req.body;
+        const documentId = req.params.id;
+
+        const workerDocument = await WorkerDocument.findById(documentId);
+        if (!workerDocument) {
+            return res.status(404).json({
+                success: false,
+                message: 'Documents not found'
+            });
+        }
+
+        // Update document status
+        workerDocument.status = status;
+        workerDocument.lastVerifiedBy = req.user._id;
+        
+        // Update individual document verification status
+        if (status === 'verified') {
+            workerDocument.aadhar.verified = true;
+            workerDocument.pan.verified = true;
+            workerDocument.policeVerification.verified = true;
+            workerDocument.certifications = workerDocument.certifications.map(cert => ({
+                ...cert,
+                verified: true
+            }));
+            workerDocument.isKYCComplete = true;
+        }
+
+        await workerDocument.save();
+
+        // Get worker details for notification
+        const worker = await User.findById(workerDocument.workerId);
+
+        // Send notification to worker about document status
+        let notificationData = {
+            userId: workerDocument.workerId,
+            recipientRole: 'worker',
+            priority: 'high',
+            category: 'worker',
+            metadata: {
+                documentId: workerDocument._id,
+                status,
+                remarks
+            },
+            actionUrl: `/worker/documents/${workerDocument._id}`
+        };
+
+        if (status === 'rejected') {
+            await NotificationService.createNotification({
+                ...notificationData,
+                type: 'document_rejected',
+                title: 'Documents Verification Failed',
+                message: `Your documents have been rejected. Reason: ${remarks}`
+            });
+
+            // Send email notification for rejection
+            await emailService.sendEmail(worker.email, 'Documents Verification Failed', 
+                `Dear ${worker.name},\n\nYour documents have been rejected.\nReason: ${remarks}\n\nPlease upload the correct documents.`);
+        } else if (status === 'verified') {
+            await NotificationService.createNotification({
+                ...notificationData,
+                type: 'document_verified',
+                title: 'Documents Verified Successfully',
+                message: 'Your documents have been verified successfully. You can now start accepting bookings.'
+            });
+
+            // Send email notification for verification
+            await emailService.sendEmail(worker.email, 'Documents Verified Successfully', 
+                `Dear ${worker.name},\n\nYour documents have been verified successfully. You can now start accepting bookings.`);
+        } else {
+            await NotificationService.createNotification({
+                ...notificationData,
+                type: 'profile_updated',
+                title: 'Document Status Updated',
+                message: `Your documents status has been updated to: ${status}${remarks ? ` (${remarks})` : ''}`
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: workerDocument
+        });
+    } catch (error) {
+        console.error('Verify documents error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error verifying documents',
+            error: error.message
+        });
+    }
+};
+
 // @desc    Get worker documents
-// @route   GET /api/worker-documents
+// @route   GET /api/worker-documents/:id?
 // @access  Private (Worker or Admin)
 exports.getWorkerDocuments = async (req, res) => {
     try {
-        const workerId = req.query.workerId || req.user._id;
+        const workerId = req.params.id || req.user._id;
 
         // If not admin and trying to access other's documents
         if (req.user.role !== 'admin' && workerId !== req.user._id.toString()) {
@@ -140,7 +265,7 @@ exports.updateWorkerDocuments = async (req, res) => {
     try {
         // For workers updating their own documents, use workerId to find the document
         const query = req.user.role === 'worker' 
-            ? { workerId: req.user._id }
+            ? { workerId: req.user._id } 
             : { _id: req.params.id };
             
         let document = await WorkerDocument.findOne(query);
@@ -260,10 +385,7 @@ exports.deleteDocument = async (req, res) => {
 // @access  Private (Worker or Admin)
 exports.getDocumentById = async (req, res) => {
     try {
-        const document = await WorkerDocument.findOne(
-            { 'documents._id': req.params.id },
-            { 'documents.$': 1, workerId: 1, isKYCComplete: 1 }
-        );
+        const document = await WorkerDocument.findById(req.params.id);
 
         if (!document) {
             return res.status(404).json({
@@ -280,21 +402,9 @@ exports.getDocumentById = async (req, res) => {
             });
         }
 
-        const specificDocument = document.documents[0];
-        
         res.status(200).json({
             success: true,
-            data: {
-                _id: specificDocument._id,
-                type: specificDocument.type,
-                url: specificDocument.url,
-                status: specificDocument.status,
-                uploadedAt: specificDocument.uploadedAt,
-                verifiedAt: specificDocument.verifiedAt,
-                verificationNotes: specificDocument.verificationNotes,
-                ...(specificDocument.status === 'rejected' && { rejectionReason: specificDocument.rejectionReason }),
-                isKYCComplete: document.isKYCComplete
-            }
+            data: document
         });
     } catch (error) {
         console.error('Get document by id error:', error);
