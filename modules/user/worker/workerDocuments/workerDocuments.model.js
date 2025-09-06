@@ -13,20 +13,71 @@ const workerDocumentSchema = new mongoose.Schema({
     unique: true // Ensures one document set per worker
   },
   aadhar: {
-    type: String,
-    required: true
+    url: {
+      type: String,
+      required: true
+    },
+    fileType: {
+      type: String,
+      enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
+      required: true
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    }
   },
   pan: {
-    type: String,
-    required: true
+    url: {
+      type: String,
+      required: true
+    },
+    fileType: {
+      type: String,
+      enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
+      required: true
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    }
   },
-  drivingLicense: {
-    type: String,
-    required: true
+  policeVerification: {
+    url: {
+      type: String,
+      required: true
+    },
+    fileType: {
+      type: String,
+      enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
+      required: true
+    },
+    verified: {
+      type: Boolean,
+      default: false
+    }
   },
   certifications: {
-    type: String,
-    required: true
+    type: [{
+      url: {
+        type: String,
+        required: true
+      },
+      fileType: {
+        type: String,
+        enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
+        required: true
+      },
+      title: {
+        type: String,
+        required: true
+      },
+      verified: {
+        type: Boolean,
+        default: false
+      }
+    }],
+    default: []
   },
   isKYCComplete: {
     type: Boolean,
