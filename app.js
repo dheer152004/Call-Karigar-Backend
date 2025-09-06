@@ -24,9 +24,11 @@ if (process.env.NODE_ENV === 'development') {
 
 // Routes
 const couponRoutes = require('./modules/coupon/coupon.routes');
+const serviceRequestRoutes = require('./modules/serviceRequest/serviceRequest.routes');
 
 // Mount routes
 app.use('/api/coupons', couponRoutes);
+app.use('/api/service-requests', serviceRequestRoutes);
 
 // CORS Configuration
 const corsOptions = {
