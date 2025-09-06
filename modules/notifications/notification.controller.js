@@ -28,6 +28,7 @@ exports.getUserNotifications = async (req, res) => {
         const result = await NotificationService.getUserNotifications(req.user._id, req.query);
         res.status(200).json({
             success: true,
+            totalCount: result.pagination.totalItems,
             ...result
         });
     } catch (error) {
