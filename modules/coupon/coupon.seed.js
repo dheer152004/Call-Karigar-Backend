@@ -113,3 +113,4 @@ if (require.main === module) {
 module.exports = seedCoupons;
 
 // node modules/coupon/coupon.seed.js // to run the seeder
+//please don't make any unnecessary coupons this can make us bankrupt 🥲🥲🥲

@@ -540,26 +540,6 @@ exports.loginUser = async (req, res) => {
     }
 };
 
-// Logout user
-// exports.logoutUser = async (req, res) => {
-//     try {
-//         // Since we're using JWT, we don't need to do anything server-side
-//         // The client should remove the token from storage
-        
-//         res.status(200).json({
-//             success: true,
-//             message: 'Logged out successfully',
-//             data: null
-//         });
-//     } catch (error) {
-//         console.error('Logout error:', error);
-//         res.status(500).json({
-//             success: false,
-//             message: 'Error during logout'
-//         });
-//     }
-// };
-
 // Logout user (client-side token removal)
 exports.logoutUser = async (req, res) => {
     try {
@@ -596,4 +576,3 @@ exports.logoutUser = async (req, res) => {
         });
     }
 };
-
