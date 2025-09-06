@@ -36,7 +36,8 @@
     "razorpay": "^2.9.6",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0",
-    "validator": "^13.15.15"
+    "validator": "^13.15.15",
+    "vercel": "^47.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
