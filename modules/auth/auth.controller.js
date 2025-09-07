@@ -392,6 +392,7 @@ exports.loginUser = async (req, res) => {
 
         // Get appropriate profile model based on role
         let profile = null;
+        let redirectTo = null;
         
         // Fetch user's addresses
         const addresses = await Address.find({ userId: user._id })
@@ -417,7 +418,7 @@ exports.loginUser = async (req, res) => {
             );
 
             return res.status(200).json({
-                success: false,
+                success: true,
                 message: 'Please complete your profile',
                 details: {
                     type: 'profile',
@@ -425,7 +426,7 @@ exports.loginUser = async (req, res) => {
                     hint: `Your ${user.role} profile needs to be completed before you can proceed.`
                 },
                 data: {
-                    token, // Include token for authenticated profile completion
+                    token,
                     user: {
                         id: user._id,
                         name: user.name,
