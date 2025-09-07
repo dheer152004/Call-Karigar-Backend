@@ -398,6 +398,10 @@ exports.loginUser = async (req, res) => {
 
         // Get appropriate profile model based on role
         let profile = null;
+        
+        // Fetch user's addresses
+        const addresses = await Address.find({ userId: user._id })
+            .sort({ isPrimary: -1, createdAt: -1 });
         const Profile = user.role === 'admin' ? AdminProfile : 
                        user.role === 'customer' ? CustomerProfile : 
                        WorkerProfile;
@@ -491,6 +495,7 @@ exports.loginUser = async (req, res) => {
                     username: profile?.username
                 },
                 profile: profileData,
+                addresses: addresses,
                 navigation: {
                     redirectTo: user.role === 'admin' ? 
                         '/admin/dashboard' : 

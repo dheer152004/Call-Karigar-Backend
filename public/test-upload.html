@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Document Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success-response {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .error-response {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h2>Worker Document Upload Test</h2>
+    <form id="uploadForm">
+        <div class="form-group">
+            <label for="aadhar">Aadhar Card (PDF/JPEG/PNG):</label>
+            <input type="file" id="aadhar" name="aadhar" accept=".pdf,.jpg,.jpeg,.png" required>
+        </div>
+
+        <div class="form-group">
+            <label for="pan">PAN Card (PDF/JPEG/PNG):</label>
+            <input type="file" id="pan" name="pan" accept=".pdf,.jpg,.jpeg,.png" required>
+        </div>
+
+        <div class="form-group">
+            <label for="policeVerification">Police Verification (PDF/JPEG/PNG):</label>
+            <input type="file" id="policeVerification" name="policeVerification" accept=".pdf,.jpg,.jpeg,.png" required>
+        </div>
+
+        <div class="form-group">
+            <label for="certifications">Certifications (Multiple, Optional):</label>
+            <input type="file" id="certifications" name="certifications" accept=".pdf,.jpg,.jpeg,.png" multiple>
+        </div>
+
+        <div id="certTitles"></div>
+
+        <button type="submit">Upload Documents</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const certInput = document.getElementById('certifications');
+        const certTitlesDiv = document.getElementById('certTitles');
+        const responseDiv = document.getElementById('response');
+
+        // Handle certification file selection to add title inputs
+        certInput.addEventListener('change', (e) => {
+            certTitlesDiv.innerHTML = '';
+            const files = e.target.files;
+            
+            for (let i = 0; i < files.length; i++) {
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'form-group';
+                titleDiv.innerHTML = `
+                    <label for="certTitle${i}">Title for ${files[i].name}:</label>
+                    <input type="text" id="certTitle${i}" name="certificationTitles[]" required>
+                `;
+                certTitlesDiv.appendChild(titleDiv);
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            
+            // Add required documents
+            const aadhar = document.getElementById('aadhar').files[0];
+            const pan = document.getElementById('pan').files[0];
+            const policeVerification = document.getElementById('policeVerification').files[0];
+            
+            formData.append('aadhar', aadhar);
+            formData.append('pan', pan);
+            formData.append('policeVerification', policeVerification);
+            
+            // Add certifications and their titles
+            const certifications = document.getElementById('certifications').files;
+            const certTitles = document.getElementsByName('certificationTitles[]');
+            
+            for (let i = 0; i < certifications.length; i++) {
+                formData.append('certifications', certifications[i]);
+                formData.append('certificationTitles[]', certTitles[i].value);
+            }
+
+            try {
+                // Get the authentication token from localStorage
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('No authentication token found. Please login first.');
+                }
+
+                const response = await fetch('/api/worker-documents', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                responseDiv.textContent = JSON.stringify(result, null, 2);
+                responseDiv.className = response.ok ? 'success-response' : 'error-response';
+                
+            } catch (error) {
+                responseDiv.textContent = error.message;
+                responseDiv.className = 'error-response';
+            }
+        });
+    </script>
+</body>
+</html>

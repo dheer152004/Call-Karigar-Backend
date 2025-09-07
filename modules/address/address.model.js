@@ -50,5 +50,30 @@ const addressSchema = new mongoose.Schema({
   timestamps: true
 });
 
-const Address = mongoose.model('Address', addressSchema);
-module.exports = Address;
+// Pre-save middleware to handle primary address
+addressSchema.pre('save', async function(next) {
+  try {
+    if (this.isPrimary) {
+      // If this address is being set as primary, unset any other primary address for this user
+      await this.constructor.updateMany(
+        { 
+          userId: this.userId, 
+          _id: { $ne: this._id }, 
+          isPrimary: true 
+        },
+        { 
+          isPrimary: false 
+        }
+      );
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// module.exports = mongoose.model('Address', addressSchema);
+
+// const Address = mongoose.model('Address', addressSchema);
+// module.exports = Address;
+module.exports = mongoose.model('Address', addressSchema);

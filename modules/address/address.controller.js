@@ -1,4 +1,4 @@
-const { Address } = require('./address.model');
+const Address = require('./address.model');
 
 // Helper function to validate update fields
 const validateUpdateFields = (updates) => {
@@ -12,38 +12,48 @@ const validateUpdateFields = (updates) => {
 // Create a new address
 exports.createAddress = async (req, res) => {
     try {
-        console.log('Creating address with data:', req.body);
-        console.log('User ID from token:', req.user.id);
+        const userId = req.user._id; // Use _id instead of id
+        const { label, addressLine, city, state, postalCode, country, isPrimary } = req.body;
 
-        // If this is the user's first address, make it primary
-        const existingAddresses = await Address.find({ userId: req.user.id });
-        if (existingAddresses.length === 0) {
-            req.body.isPrimary = true;
-        }
-
-        if (!req.body || !req.body.label || !req.body.addressLine) {
+        // Check required fields
+        if (!addressLine || !city || !state || !postalCode) {
             return res.status(400).json({
-                error: 'Missing required fields',
-                required: ['label', 'addressLine', 'city', 'state', 'postalCode']
+                success: false,
+                message: 'Missing required fields',
+                required: ['addressLine', 'city', 'state', 'postalCode']
             });
         }
 
-        const address = new Address({
-            ...req.body,
-            userId: req.user.id
+        // Check if this is the user's first address
+        const existingAddressCount = await Address.countDocuments({ userId });
+        const shouldBePrimary = existingAddressCount === 0 ? true : isPrimary === true;
+
+        // Create new address
+        const address = await Address.create({
+            userId,
+            label: label || 'Home',
+            addressLine,
+            city,
+            state,
+            postalCode,
+            country: country || 'India',
+            isPrimary: shouldBePrimary
         });
 
-        console.log('Address object created:', address);
-        
+        // If this is set as primary, update other addresses (handled by pre-save middleware)
         await address.save();
-        console.log('Address saved successfully');
-        
-        res.status(201).json(address);
+
+        res.status(201).json({
+            success: true,
+            message: 'Address created successfully',
+            data: address
+        });
     } catch (error) {
         console.error('Error creating address:', error);
-        res.status(400).json({
-            error: error.message,
-            details: error.errors ? Object.values(error.errors).map(e => e.message) : undefined
+        res.status(500).json({
+            success: false,
+            message: 'Error creating address',
+            error: error.message
         });
     }
 };

@@ -2,6 +2,7 @@ const WorkerDocument = require('./workerDocuments.model');
 const NotificationService = require('../../../../services/notificationService');
 const User = require('../../../user/user.model');
 const emailService = require('../../../../services/emailService');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../../../../utils/cloudinary');
 
 // Helper function to validate file type
 const validateFileType = (fileType) => {
@@ -13,87 +14,148 @@ const validateFileType = (fileType) => {
 // @route   POST /api/worker-documents
 // @access  Private (Worker only)
 exports.uploadDocuments = async (req, res) => {
+    // Array to track uploaded files for cleanup in case of error
+    const uploadedFiles = [];
+    
     try {
         const workerId = req.user._id;
-        const { aadhar, pan, policeVerification, certifications } = req.body;
+        const files = req.files;
 
-        // Validate file types
-        const documents = { aadhar, pan, policeVerification };
-        for (const [key, doc] of Object.entries(documents)) {
-            if (!validateFileType(doc.fileType)) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Invalid file type for ${key}. Allowed types: JPEG, PNG, PDF`
+        if (!files) {
+            return res.status(400).json({
+                success: false,
+                message: 'No files uploaded'
+            });
+        }
+
+        // Upload files to Cloudinary and collect document data
+        const documentData = {};
+
+        try {
+            // Handle required documents (aadhar, pan, policeVerification)
+            const requiredDocs = ['aadhar', 'pan', 'policeVerification'];
+            for (const docType of requiredDocs) {
+                if (!files[docType]) {
+                    throw new Error(`${docType.charAt(0).toUpperCase() + docType.slice(1)} document is required`);
+                }
+
+                const file = files[docType][0];
+                const result = await uploadToCloudinary(
+                    file,
+                    `workers/${workerId}/documents/${docType}`
+                );
+
+                documentData[docType] = {
+                    url: result.url,
+                    fileType: file.mimetype,
+                    verified: false,
+                    public_id: result.public_id
+                };
+
+                uploadedFiles.push({ public_id: result.public_id });
+            }
+
+            // Handle certifications (optional)
+            if (files.certifications) {
+                documentData.certifications = await Promise.all(
+                    files.certifications.map(async (cert, index) => {
+                        const result = await uploadToCloudinary(
+                            cert,
+                            `workers/${workerId}/documents/certifications`
+                        );
+
+                        uploadedFiles.push({ public_id: result.public_id });
+
+                        return {
+                            url: result.url,
+                            fileType: cert.mimetype,
+                            title: req.body.certificationTitles?.[index] || `Certification ${index + 1}`,
+                            verified: false,
+                            public_id: result.public_id
+                        };
+                    })
+                );
+            }
+
+            // Try to find existing document
+            let workerDocument = await WorkerDocument.findOne({ workerId });
+
+            if (!workerDocument) {
+                // Create new document
+                workerDocument = await WorkerDocument.create({
+                    workerId,
+                    ...documentData,
+                    status: 'pending',
+                    isKYCComplete: false
+                });
+            } else {
+                // Delete old files from Cloudinary
+                const requiredDocs = ['aadhar', 'pan', 'policeVerification'];
+                for (const docType of requiredDocs) {
+                    if (workerDocument[docType]?.public_id) {
+                        await deleteFromCloudinary(workerDocument[docType].public_id);
+                    }
+                }
+
+                if (workerDocument.certifications?.length > 0) {
+                    for (const cert of workerDocument.certifications) {
+                        if (cert.public_id) {
+                            await deleteFromCloudinary(cert.public_id);
+                        }
+                    }
+                }
+
+                // Update with new document data
+                Object.assign(workerDocument, {
+                    ...documentData,
+                    status: 'pending',
+                    isKYCComplete: false
+                });
+                await workerDocument.save();
+            }
+
+            // Notify admins about new document upload
+            const admins = await User.find({ role: 'admin' });
+            for (const admin of admins) {
+                await NotificationService.createNotification({
+                    userId: admin._id,
+                    type: 'document_uploaded',
+                    category: 'worker',
+                    title: 'New Worker Documents Uploaded',
+                    message: `Worker ${req.user.name} has uploaded new documents for verification.`,
+                    recipientRole: 'admin',
+                    priority: 'high',
+                    metadata: {
+                        workerId,
+                        workerName: req.user.name,
+                        documentId: workerDocument._id
+                    },
+                    actionUrl: `/admin/worker-documents/${workerDocument._id}`
                 });
             }
-        }
 
-        if (certifications && certifications.length > 0) {
-            for (const cert of certifications) {
-                if (!validateFileType(cert.fileType)) {
-                    return res.status(400).json({
-                        success: false,
-                        message: `Invalid file type for certification. Allowed types: JPEG, PNG, PDF`
-                    });
+            return res.status(201).json({
+                success: true,
+                data: workerDocument
+            });
+
+        } catch (innerError) {
+            // Clean up any uploaded files in case of error
+            for (const file of uploadedFiles) {
+                try {
+                    await deleteFromCloudinary(file.public_id);
+                } catch (cleanupError) {
+                    console.error('Error cleaning up file:', cleanupError);
                 }
             }
+            throw innerError; // Re-throw to be caught by outer catch
         }
 
-        // Try to find existing document
-        let workerDocument = await WorkerDocument.findOne({ workerId });
-
-        if (workerDocument) {
-            // Update existing document
-            workerDocument.aadhar = aadhar;
-            workerDocument.pan = pan;
-            workerDocument.policeVerification = policeVerification;
-            workerDocument.certifications = certifications || [];
-            workerDocument.status = 'pending';
-            workerDocument.isKYCComplete = false;
-            await workerDocument.save();
-        } else {
-            // Create new document
-            workerDocument = await WorkerDocument.create({
-                workerId,
-                aadhar,
-                pan,
-                policeVerification,
-                certifications: certifications || [],
-                status: 'pending',
-                isKYCComplete: false
-            });
-        }
-
-        // Notify admins about new document upload
-        const admins = await User.find({ role: 'admin' });
-        for (const admin of admins) {
-            await NotificationService.createNotification({
-                userId: admin._id,
-                type: 'document_uploaded',
-                category: 'worker',
-                title: 'New Worker Documents Uploaded',
-                message: `Worker ${req.user.name} has uploaded new documents for verification.`, 
-                recipientRole: 'admin',
-                priority: 'high',
-                metadata: {
-                    workerId,
-                    workerName: req.user.name,
-                    documentId: workerDocument._id
-                },
-                actionUrl: `/admin/worker-documents/${workerDocument._id}`
-            });
-        }
-
-        res.status(201).json({
-            success: true,
-            data: workerDocument
-        });
     } catch (error) {
         console.error('Upload documents error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: 'Error uploading documents',
-            error: error.message
+            message: error.message || 'Error uploading documents'
         });
     }
 };
@@ -234,7 +296,7 @@ exports.getWorkerDocuments = async (req, res) => {
                 workerId: document.workerId,
                 aadhar: document.aadhar,
                 pan: document.pan,
-                drivingLicense: document.drivingLicense,
+                policeVerification: document.policeVerification,
                 certifications: document.certifications,
                 status: document.status,
                 isKYCComplete: document.isKYCComplete,
