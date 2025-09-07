@@ -5,7 +5,7 @@ const { generateUniqueUsername } = require('../../../utils/usernameGenerator');
 
 // Helper function to validate customer profile data
 const validateProfileData = (data) => {
-    const requiredFields = ['phoneNumber', 'address'];
+    const requiredFields = ['phoneNumber'];
     const missingFields = requiredFields.filter(field => !data[field]);
     
     if (missingFields.length > 0) {
@@ -21,14 +21,6 @@ const validateProfileData = (data) => {
         return {
             isValid: false,
             error: 'Invalid phone number format. Must be 10 digits.'
-        };
-    }
-
-    // Validate address ID is provided
-    if (!data.address) {
-        return {
-            isValid: false,
-            error: 'Address ID is required'
         };
     }
 
@@ -98,13 +90,12 @@ exports.createCustomerProfile = async (req, res) => {
         // Generate unique username
         const username = await generateUniqueUsername('customer', user.name);
 
-        // Create profile with provided data
+        // Create basic profile with essential data
         const profileData = {
             userId: req.user.id,
             username,
-            phoneNumber: user.phone, // Get from user data
-            email: user.email, // Get from user data
-            address: req.body.address,
+            phoneNumber: user.phone,
+            email: user.email,
             preferences: {
                 language: req.body.language || 'en',
                 notifications: req.body.notifications !== undefined ? req.body.notifications : true,

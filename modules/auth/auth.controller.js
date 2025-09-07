@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../user/user.model');
 const CustomerProfile = require('../user/customer/customerProfile.model');
 const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model');
-const AdminProfile = require('../user/admin/admin.model');
+const AdminProfile = require('../user/admin/adminProfile.model');
 const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
 
@@ -27,26 +27,20 @@ const generateUsername = async (name, Model, isWorker = false) => {
 const createUserProfile = async (user, addressData = null) => {
     // For admin users, create a profile with random data
     if (user.role === 'admin') {
-        const username = `admin.${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-        const adminProfile = new AdminProfile({
-            userId: user._id,
-            username,
-            photo: `admin-${Math.floor(Math.random() * 5)}.jpg`,
-            bio: `Senior administrator with ${Math.floor(Math.random() * 5 + 2)} years of experience`,
-            department: ['Operations', 'Support', 'Management'][Math.floor(Math.random() * 3)],
-            status: 'active',
-            permissions: ['manage_users', 'manage_workers', 'manage_services', 'manage_bookings'],
-            preferences: {
-                language: 'en',
-                notifications: true,
-                theme: 'dark'
-            }
+        // Generate admin username
+        const adminUsername = `admin.${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
+        // Create basic admin profile without validation
+        const adminProfile = await AdminProfile.collection.insertOne({
+            userId: user._id,  // Changed from adminId to userId
+            username: adminUsername,
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
-        
-        const savedProfile = await adminProfile.save();
+
         return {
-            username,
-            profile: savedProfile,
+            username: adminUsername,
+            profile: { _id: adminProfile.insertedId, userId: user._id },
             isProfileComplete: true
         };
     }
