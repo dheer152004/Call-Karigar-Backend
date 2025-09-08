@@ -1,6 +1,7 @@
 const WorkerService = require('./workerService.model');
 const WorkerProfile = require('../workerProfile/workerProfile.model');
 const Service = require('../../../serviceCategories/servicess/service.model');
+const User = require('../../../user/user.model');  // Fixed the path to User model
 
 // @desc    Add service to worker's profile
 // @route   POST /api/worker-services
@@ -107,14 +108,80 @@ exports.getWorkerServices = async (req, res) => {
 exports.getServiceWorkers = async (req, res) => {
     try {
         const serviceId = req.params.serviceId;
-        const workers = await WorkerService.find({ serviceId, isActive: true })
-            .populate('serviceId', 'title description baseprice')
-            .populate('workerId', 'bio skills photo');
+        
+        // Find the service first to ensure it exists
+        const service = await Service.findById(serviceId);
+        if (!service) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service not found'
+            });
+        }
+
+        // Find all worker services for this service with populated data
+        const workerServices = await WorkerService.find({ 
+            serviceId: serviceId,
+            isActive: true 
+        }).lean();  // Use lean() for better performance
+
+        // Get unique worker IDs
+        const workerIds = [...new Set(workerServices.map(ws => ws.workerId))];
+
+        // Fetch all workers in one query
+        const workers = await User.find({
+            _id: { $in: workerIds },
+            role: 'worker'  // Ensure we only get worker users
+        }).select('name email phone').lean();
+
+        // Create a map of worker data for quick lookup
+        const workersMap = new Map(workers.map(w => [w._id.toString(), w]));
+
+        // Fetch all worker profiles in one query
+        const workerProfiles = await WorkerProfile.find({
+            userId: { $in: workerIds }
+        }).select('userId bio skills photo username rating availability').lean();
+
+        // Create a map of worker profiles for quick lookup
+        const profilesMap = new Map(workerProfiles.map(p => [p.userId.toString(), p]));
+
+        // Combine all the data
+        const workersWithDetails = workerServices.map(ws => {
+            const worker = workersMap.get(ws.workerId.toString());
+            const profile = profilesMap.get(ws.workerId.toString()) || {};
+
+            return {
+                _id: ws._id,
+                workerId: ws.workerId,
+                serviceId: ws.serviceId,
+                customPrice: ws.customPrice,
+                experience: ws.experience,
+                description: ws.description,
+                isActive: ws.isActive,
+                workerProfile: {
+                    bio: profile.bio || '',
+                    skills: profile.skills || [],
+                    photo: profile.photo || 'default.jpg',
+                    username: profile.username,
+                    rating: profile.rating || 0,
+                    availability: profile.availability || []
+                },
+                basicInfo: worker ? {
+                    name: worker.name,
+                    email: worker.email,
+                    phone: worker.phone
+                } : {}
+            };
+        });
 
         res.status(200).json({
             success: true,
-            count: workers.length,
-            data: workers
+            count: workersWithDetails.length,
+            data: workersWithDetails,
+            serviceDetails: {
+                title: service.title,
+                description: service.description,
+                basePrice: service.basePrice
+            }
         });
     } catch (error) {
         console.error('Get service workers error:', error);
