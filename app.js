@@ -27,12 +27,10 @@ const couponRoutes = require('./modules/coupon/coupon.routes');
 const serviceRequestRoutes = require('./modules/serviceRequest/serviceRequest.routes');
 
 // Mount routes
-app.use('/api/coupons', couponRoutes);
-app.use('/api/service-requests', serviceRequestRoutes);
 
 // CORS Configuration
 const corsOptions = {
-
+  
   origin: function(origin, callback) {
     callback(null, true); // allow all origins - regardless of port
   },
@@ -53,13 +51,14 @@ const corsOptions = {
 // In a production environment, replace '*' with your actual frontend domain
 corsOptions.origin = (origin, callback) => {
   const allowedOrigins = [
-    'http://localhost:3000', // Frontend development server
-    'http://localhost:5000', // Backend server (if frontend is served from here)
-    'http://localhost:6000', // Another potential frontend port
-    'http://localhost:7000', // Another potential frontend port
-    'http://localhost:8000', // Another potential frontend port
-    'http://localhost:9000', // Another potential frontend port
-    // Add other production origins here
+    // 'http://localhost:3000', // Frontend development server
+    // 'http://localhost:5000', // Backend server (if frontend is served from here)
+    // 'http://localhost:6000', // Another potential frontend port
+    // 'http://localhost:7000', // Another potential frontend port
+    // 'http://localhost:8000', // Another potential frontend port
+    // 'http://localhost:9000', // Another potential frontend port
+    // // Add other production origins here
+    '*'
   ];
   if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
     callback(null, true);
@@ -103,33 +102,29 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' })); // Limit JSON body size
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files
-const publicPath = path.resolve(__dirname, 'public');
-console.log('Public directory absolute path:', publicPath);
-app.use(express.static(publicPath));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
 
 // Serve HTML files for different roles
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(publicPath, 'login.html'));
+  res.sendFile(path.join(publicPath, 'login.html'));
 });
 
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(publicPath, 'register.html'));
+  res.sendFile(path.join(publicPath, 'register.html'));
 });
 
 app.get('/admin/dashboard', (req, res) => {
-    res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
+  res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
 });
 
 app.get('/customer/dashboard', (req, res) => {
-    res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
+  res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
 });
 
 app.get('/worker/dashboard', (req, res) => {
-    res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
+  res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
 });
 
 // Import routes from modules
@@ -182,6 +177,8 @@ app.use('/api/admin/workers', workerVerificationRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/service-requests', serviceRequestRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
