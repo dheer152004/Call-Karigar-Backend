@@ -52,7 +52,7 @@ corsOptions.origin = (origin, callback) => {
   if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
     callback(null, true);
   } else {
-    callback(new Error('Not allowed by CORS'));
+    callback(new Error('Not allowed by CORS by the CORS policy'));
   }
 };
 
