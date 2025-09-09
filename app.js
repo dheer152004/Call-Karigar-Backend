@@ -32,7 +32,10 @@ app.use('/api/service-requests', serviceRequestRoutes);
 
 // CORS Configuration
 const corsOptions = {
-  origin: '*',  // Allow all origins - WARNING: This should be properly restricted in production,
+
+  origin: function(origin, callback) {
+    callback(null, true); // allow all origins - regardless of port
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
@@ -42,8 +45,29 @@ const corsOptions = {
     'Origin',
   ],
   credentials: true,  // Allow credentials (cookies, authorization headers, etc)
-  maxAge: 86400      // Cache preflight request results for 24 hours
+  maxAge: 86400,     // Cache preflight request results for 24 hours
+  exposedHeaders: ['Content-Range', 'X-Content-Range'] // Allow these headers to be exposed
 };
+
+// Allow the frontend origin (e.g., React app running on port 3000)
+// In a production environment, replace '*' with your actual frontend domain
+corsOptions.origin = (origin, callback) => {
+  const allowedOrigins = [
+    'http://localhost:3000', // Frontend development server
+    'http://localhost:5000', // Backend server (if frontend is served from here)
+    'http://localhost:6000', // Another potential frontend port
+    'http://localhost:7000', // Another potential frontend port
+    'http://localhost:8000', // Another potential frontend port
+    'http://localhost:9000', // Another potential frontend port
+    // Add other production origins here
+  ];
+  if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+
 
 // Security middleware with configurations for static files
 app.use(helmet({
