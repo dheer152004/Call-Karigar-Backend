@@ -30,7 +30,6 @@ const serviceRequestRoutes = require('./modules/serviceRequest/serviceRequest.ro
 
 // CORS Configuration
 const corsOptions = {
-  
   origin: function(origin, callback) {
     callback(null, true); // allow all origins - regardless of port
   },
@@ -50,22 +49,13 @@ const corsOptions = {
 // Allow the frontend origin (e.g., React app running on port 3000)
 // In a production environment, replace '*' with your actual frontend domain
 corsOptions.origin = (origin, callback) => {
-  const allowedOrigins = [
-    // 'http://localhost:3000', // Frontend development server
-    // 'http://localhost:5000', // Backend server (if frontend is served from here)
-    // 'http://localhost:6000', // Another potential frontend port
-    // 'http://localhost:7000', // Another potential frontend port
-    // 'http://localhost:8000', // Another potential frontend port
-    // 'http://localhost:9000', // Another potential frontend port
-    // // Add other production origins here
-    '*'
-  ];
-  if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+  if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
     callback(null, true);
   } else {
     callback(new Error('Not allowed by CORS'));
   }
 };
+
 
 
 // Security middleware with configurations for static files
