@@ -7,146 +7,175 @@ const AdminProfile = require('../user/admin/adminProfile.model');
 const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
 
-// Helper function to generate a unique username
-const generateUsername = async (name, Model, isWorker = false) => {
-    const baseName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    let username = baseName;
-    if (isWorker) username += '.pro';
+// Helper function to generate a unique username from name and email
+const generateUsername = async (user, Model, isWorker = false) => {
+    // Get name and email parts
+    const namePart = user.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const emailPart = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    // Create base username
+    let baseUsername = `${namePart}.${emailPart}`;
+    if (isWorker) baseUsername += '.pro';
+    
+    // Try the base username first
+    let username = baseUsername;
     let counter = 1;
     
+    // Keep trying until we find a unique username
     while (await Model.findOne({ username })) {
         username = isWorker ? 
-            `${baseName}.pro${counter}` : 
-            `${baseName}${counter}`;
+            `${baseUsername}${counter}` : 
+            `${baseUsername}${counter}`;
         counter++;
     }
 
     return username;
 };
 
-const createUserProfile = async (user, addressData = null) => {
-    // For admin users, create a profile with random data
-    if (user.role === 'admin') {
-        // Generate admin username
-        const adminUsername = `admin.${user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+const createBasicProfile = async (user) => {
+    let profile = null;
+    let message = '';
+    let redirectTo = '';
 
-        // Create basic admin profile without validation
-        const adminProfile = await AdminProfile.collection.insertOne({
-            userId: user._id,  // Changed from adminId to userId
-            username: adminUsername,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+    switch (user.role) {
+        case 'admin':
+            const adminProfile = await AdminProfile.create({
+                userId: user._id,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            });
 
-        return {
-            username: adminUsername,
-            profile: { _id: adminProfile.insertedId, userId: user._id },
-            isProfileComplete: true
-        };
+            profile = {
+                _id: adminProfile._id,
+                userId: user._id
+            };
+            
+            redirectTo = '/admin/update-profile';
+            message = 'Admin registration successful. Please complete your profile.';
+            break;
+
+        case 'customer':
+            // Create minimal customer profile
+            const customerProfile = await CustomerProfile.create({
+                userId: user._id,
+                status: 'new',
+                phoneNumber: user.phone,
+                email: user.email,
+                photo: 'default-profile.jpg',
+                bio: '',
+                address: [],
+                savedAddresses: [],
+                savedWorkers: [],
+                preferences: {
+                    language: 'en',
+                    notifications: true,
+                    currency: 'INR',
+                    theme: 'light'
+                },
+                stats: {
+                    totalBookings: 0,
+                    completedBookings: 0,
+                    cancelledBookings: 0,
+                    totalSpent: 0
+                }
+            });
+
+            profile = {
+                _id: customerProfile._id,
+                userId: user._id
+            };
+            
+            redirectTo = '/customer/update-profile';
+            message = 'Customer registration successful. Please complete your profile.';
+            break;
+
+        case 'worker':
+            // Generate unique username for worker
+            const username = await generateUsername(user, WorkerProfile, true);
+            
+            // Create worker profile with generated username
+            const workerProfile = await WorkerProfile.create({
+                userId: user._id,
+                username: username,
+                phoneNumber: user.phone,
+                email: user.email,
+                photo: 'default-worker.jpg',
+                bio: 'Hello, I am a new service provider.',
+                skills: [],
+                status: 'pending',
+                isVerified: false,
+                availability: {
+                    isAvailable: false,
+                    schedule: []
+                },
+                preferences: {
+                    language: 'en',
+                    notifications: true,
+                    maxJobRadius: 10,
+                    autoAccept: false
+                },
+                stats: {
+                    totalJobs: 0,
+                    completedJobs: 0,
+                    cancelledJobs: 0,
+                    totalEarnings: 0,
+                    rating: 0,
+                    ratingCount: 0
+                }
+            });
+
+            profile = {
+                _id: workerProfile._id,
+                userId: user._id
+            };
+            
+            redirectTo = '/worker/update-profile';
+            message = 'Worker registration successful. Please complete your profile and verify your documents.';
+            break;
     }
 
-    // Create address if provided
-    let addressId = null;
-    if (addressData) {
-        const address = new Address({
-            userId: user._id,
-            label: addressData.label || 'Home',
-            addressLine: addressData.addressLine,
-            city: addressData.city,
-            state: addressData.state,
-            postalCode: addressData.postalCode,
-            country: addressData.country || 'India',
-            isPrimary: true // First address is primary
-        });
-        const savedAddress = await address.save();
-        addressId = savedAddress._id;
-    }
+    return {
+        profile: { _id: profile.insertedId, userId: user._id },
+        message,
+        redirectTo
+    };
+};
 
-    // Base profile data with UUID handling
-    let profileData = {
-        userId: user._id.toString(), // Ensure it's a string
+// Helper function to create a new address
+const createAddress = async (user, addressData) => {
+    if (!addressData) return null;
+
+    const address = new Address({
+        userId: user._id,
+        label: addressData.label || 'Home',
+        addressLine: addressData.addressLine,
+        city: addressData.city,
+        state: addressData.state,
+        postalCode: addressData.postalCode,
+        country: addressData.country || 'India',
+        isPrimary: true
+    });
+    const savedAddress = await address.save();
+    return savedAddress._id;
+};
+
+// Helper function to get base profile data
+const getBaseProfileData = (user, addressId = null) => {
+    return {
+        userId: user._id.toString(),
         phoneNumber: user.phone,
         email: user.email,
-        address: addressId, // Link the address if created
+        address: addressId,
         preferences: { 
             language: 'en', 
             notifications: true 
         },
-        savedAddresses: addressId ? [addressId] : [] // Add to saved addresses if created
+        savedAddresses: addressId ? [addressId] : []
     };
-
-    if (user.role === 'customer') {
-        const username = await generateUsername(user.name, CustomerProfile);
-        
-        // Create new profile document with random data
-        const newProfile = new CustomerProfile({
-            ...profileData,
-            username,
-            photo: `profile-${Math.floor(Math.random() * 10)}.jpg`,
-            bio: `Hi, I'm ${user.name}!`,
-            status: 'active',
-            preferences: {
-                ...profileData.preferences,
-                currency: 'INR',
-                theme: Math.random() > 0.5 ? 'light' : 'dark'
-            },
-            stats: {
-                totalBookings: Math.floor(Math.random() * 10),
-                completedBookings: Math.floor(Math.random() * 8),
-                cancelledBookings: Math.floor(Math.random() * 2),
-                totalSpent: Math.floor(Math.random() * 10000)
-            }
-        });
-
-        // Save the profile
-        const savedProfile = await newProfile.save();
-
-        return {
-            username,
-            profile: savedProfile,
-            isProfileComplete: true
-        };
-    } else if (user.role === 'worker') {
-        const username = await generateUsername(user.name, WorkerProfile, true);
-        
-        // Create new worker profile
-        const newProfile = new WorkerProfile({
-            userId: user._id,
-            username,
-            phoneNumber: user.phone,
-            email: user.email,
-            photo: `worker-${Math.floor(Math.random() * 10)}.jpg`,
-            bio: `Professional service provider with ${Math.floor(Math.random() * 10 + 1)} years of experience`,
-            skills: ['Plumbing', 'Electrical', 'Carpentry', 'Painting'].slice(0, Math.floor(Math.random() * 3 + 1)),
-            status: 'active',
-            isVerified: true,
-            preferences: {
-                language: 'en',
-                notifications: true,
-                availability: {
-                    autoAccept: Math.random() > 0.5,
-                    maxJobsPerDay: Math.floor(Math.random() * 5 + 3)
-                }
-            },
-            stats: {
-                totalJobs: Math.floor(Math.random() * 50),
-                completedJobs: Math.floor(Math.random() * 40),
-                cancelledJobs: Math.floor(Math.random() * 5),
-                totalEarnings: Math.floor(Math.random() * 50000)
-            },
-            ratingAverage: (Math.random() * 2 + 3).toFixed(1),
-            ratingCount: Math.floor(Math.random() * 30)
-        });
-
-        // Save the profile
-        const savedProfile = await newProfile.save();
-        
-        return {
-            username,
-            profile: savedProfile
-        };
-    }
 };
+
+// Create initial profile is handled by createBasicProfile function
+// This section is no longer needed as we're creating minimal profiles during registration
 
 // Register a new user
 exports.registerUser = async (req, res) => {
@@ -156,8 +185,7 @@ exports.registerUser = async (req, res) => {
             email, 
             phone, 
             password, 
-            role,
-            address // Optional address during registration
+            role
         } = req.body;
 
         // Validate required fields
@@ -168,11 +196,12 @@ exports.registerUser = async (req, res) => {
             });
         }
 
-        // Validate address if provided
-        if (address && (!address.addressLine || !address.city || !address.state || !address.postalCode)) {
+        // Validate role
+        const validRoles = ['admin', 'customer', 'worker'];
+        if (!validRoles.includes(role)) {
             return res.status(400).json({
                 success: false,
-                message: 'If providing address, all address fields are required'
+                message: 'Invalid role specified'
             });
         }
 
@@ -180,24 +209,32 @@ exports.registerUser = async (req, res) => {
         const normalizedEmail = email.toLowerCase().trim();
         const normalizedPhone = phone.replace(/\D/g, '');
 
-        // Check both email and phone simultaneously
-        const [existingEmail, existingPhone] = await Promise.all([
-            User.findOne({ email: normalizedEmail }),
-            User.findOne({ phone: normalizedPhone })
-        ]);
+        // Check for existing user with case-insensitive email or exact phone match
+        const existingUser = await User.findOne({
+            $or: [
+                { email: normalizedEmail },
+                { phone: normalizedPhone }
+            ]
+        });
 
-        const errors = [];
-        if (existingEmail) errors.push('email already registered');
-        if (existingPhone) errors.push('phone already registered');
+        if (existingUser) {
+            const isDuplicateEmail = existingUser.email.toLowerCase() === normalizedEmail.toLowerCase();
+            const isDuplicatePhone = existingUser.phone === normalizedPhone;
 
-        if (errors.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: errors.join(', ')
+                message: isDuplicateEmail && isDuplicatePhone ? 
+                    'Email and phone number already registered' :
+                    isDuplicateEmail ? 
+                        'Email already registered' : 
+                        'Phone number already registered'
             });
         }
 
-        // Create user
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
         console.log('Creating new user:', {
             name: name.trim(),
             email: normalizedEmail,
@@ -205,15 +242,19 @@ exports.registerUser = async (req, res) => {
             role: role || 'customer'
         });
 
-        const user = new User({
+        // Create user with hashed password using create method
+        const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
             phone: normalizedPhone,
-            password,
-            role: role || 'customer'
+            password: hashedPassword,
+            role: role || 'customer',
+            status: 'active',
+            isPhoneVerified: false,
+            isEmailVerified: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
-
-        await user.save();
         console.log('User created successfully:', {
             _id: user._id,
             email: user.email,
@@ -221,72 +262,53 @@ exports.registerUser = async (req, res) => {
             role: user.role
         });
 
-        // Validate role
-        if (role && !['customer', 'worker', 'admin'].includes(role)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid role specified'
-            });
-        }
+        // Create basic profile
+        const { profile, message, redirectTo } = await createBasicProfile(user);
 
-        // Create user profile with address and send welcome notification
-        try {
-            const { username, profile } = await createUserProfile(user, address);
-            
-            // Send welcome notification (skip for admin)
-            if (user.role !== 'admin') {
-                try {
-                    await NotificationService.createNotification({
-                        userId: user._id,
-                        type: user.role === 'worker' ? 'worker_registered' : 'customer_registered',
-                        category: 'account',
-                        title: 'Welcome to Call Kaarigar!',
-                        message: user.role === 'worker' 
-                            ? 'Your worker account has been created. Please complete your profile and upload required documents for verification.'
-                            : 'Welcome to Call Kaarigar! Your account has been created successfully.',
-                        recipientRole: user.role,
-                        priority: 'high'
-                    });
-                } catch (notifError) {
-                    console.error('Error sending welcome notification:', notifError);
-                    // Don't fail registration if notification fails
-                }
+        // Generate JWT token
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        // Send welcome notification (skip for admin)
+        if (user.role !== 'admin') {
+            try {
+                await NotificationService.createNotification({
+                    userId: user._id,
+                    type: user.role === 'worker' ? 'worker_registered' : 'customer_registered',
+                    category: 'account',
+                    title: 'Welcome to Call Kaarigar!',
+                    message: user.role === 'worker' 
+                        ? 'Your worker account has been created. Please complete your profile and upload required documents for verification.'
+                        : 'Welcome to Call Kaarigar! Your account has been created successfully.',
+                    recipientRole: user.role,
+                    priority: 'high'
+                });
+            } catch (notifError) {
+                console.error('Error sending welcome notification:', notifError);
+                // Don't fail registration if notification fails
             }
-
-            // Generate token
-            const token = jwt.sign(
-                { id: user._id, role: user.role },
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRE || '7d' }
-            );
-
-            // Send success response
-            res.status(201).json({
-                success: true,
-                message: 'User registered successfully',
-                data: {
-                    user: {
-                        id: user._id,
-                        name: user.name,
-                        email: user.email,
-                        phone: user.phone,
-                        role: user.role
-                    },
-                    profile,
-                    token,
-                    redirectTo: `/${user.role}/update-profile`
-                }
-            });
-
-        } catch (profileError) {
-            // If profile creation fails, delete the user
-            await User.findByIdAndDelete(user._id);
-            return res.status(500).json({
-                success: false,
-                message: `Failed to create ${user.role} profile`,
-                error: profileError.message
-            });
         }
+
+        // Send success response
+        res.status(201).json({
+            success: true,
+            message: message,
+            data: {
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    role: user.role
+                },
+                profile,
+                token,
+                redirectTo
+            }
+        });
     } catch (error) {
         console.error('Registration error:', error);
         
@@ -335,19 +357,19 @@ exports.loginUser = async (req, res) => {
         // Find user by email or phone
         const query = {
             $or: [
-                ...(isEmail ? [{ email: normalizedIdentifier }] : []),
+                ...(isEmail ? [{ email: normalizedIdentifier.toLowerCase() }] : []),
                 ...(isPhone ? [{ phone: normalizedPhone }] : [])
             ]
         };
         console.log('Search query:', JSON.stringify(query));
         
-        const user = await User.findOne(query).select('+password');
+        // Make sure to select password field and use case-insensitive email comparison
+        const user = await User.findOne(query);
         console.log('User found:', user ? { 
             _id: user._id, 
             email: user.email, 
             phone: user.phone,
-            role: user.role,
-            status: user.status 
+            role: user.role
         } : 'No user found');
 
         if (!user) {
@@ -375,17 +397,29 @@ exports.loginUser = async (req, res) => {
 
         // Check password
         console.log('Comparing password for user:', user._id);
-        const isMatch = await bcrypt.compare(password, user.password);
-        console.log('Password match result:', isMatch);
-        
-        if (!isMatch) {
-            return res.status(401).json({
+        try {
+            const isMatch = await bcrypt.compare(password, user.password);
+            console.log('Password match result:', isMatch);
+            
+            if (!isMatch) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials',
+                    details: {
+                        type: 'password',
+                        exists: true,
+                        hint: 'The password you entered is incorrect. Please try again.'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Password comparison error:', error);
+            return res.status(500).json({
                 success: false,
-                message: 'Invalid credentials',
+                message: 'Error during authentication',
                 details: {
-                    type: 'password',
-                    exists: true,
-                    hint: 'The password you entered is incorrect. Please try again.'
+                    type: 'server_error',
+                    hint: 'Please try again later.'
                 }
             });
         }

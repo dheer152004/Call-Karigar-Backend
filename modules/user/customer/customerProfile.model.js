@@ -4,39 +4,44 @@ const customerProfileSchema = new mongoose.Schema({
   userId: {
     type: String,
     ref: 'User',
-    required: true
+    required: true,
+    unique: true  // Each user can have only one customer profile
   },
   username: {
     type: String,
-    required: true,
-    unique: true,
-    trim: true
+    trim: true,
+    sparse: true  // Allow null values initially
   },
   phoneNumber: {
     type: String,
-    required: true,
-    match: [/^\d{10}$/, 'Phone number must be 10 digits']
+    match: [/^\d{10}$/, 'Phone number must be 10 digits'],
+    sparse: true  // Allow null values initially
   },
   email: {
     type: String,
     trim: true,
     lowercase: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email'],
+    sparse: true  // Allow null values initially
   },
   photo: {
     type: String,
     default: 'default-profile.jpg'
   },
-  address: {
-    type: String,
-    ref: 'Address',
-    default: null
-  },
+  address: [{  // Changed to array of addresses
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Address'
+  }],
   bio: {
     type: String,
     trim: true,
     maxLength: 500,
     default: ''
+  },
+  status: {
+    type: String,
+    enum: ['new', 'active', 'inactive', 'blocked'],  // Changed enum values
+    default: 'new'  // Changed default value
   },
   preferences: {
     language: {
@@ -48,8 +53,14 @@ const customerProfileSchema = new mongoose.Schema({
       type: Boolean,
       default: true
     },
+    theme: {
+      type: String,
+      enum: ['light', 'dark'],
+      default: 'light'
+    },
     currency: {
       type: String,
+      enum: ['INR', 'USD'],
       default: 'INR'
     }
   },

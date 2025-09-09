@@ -113,7 +113,7 @@ exports.getWorkerReviews = async (req, res) => {
     try {
         const reviews = await Review.find({ workerId: req.params.workerId })
             .populate('customerId', 'name')
-            .populate('serviceId', 'title')
+            .populate('workerServiceId', 'serviceName price')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -146,7 +146,7 @@ exports.getCustomerReviews = async (req, res) => {
 
         const reviews = await Review.find({ customerId: req.params.customerId })
             .populate('workerId', 'name')
-            .populate('serviceId', 'title')
+            .populate('workerServiceId', 'serviceName price')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -193,7 +193,7 @@ exports.updateReview = async (req, res) => {
         )
             .populate('customerId', 'name')
             .populate('workerId', 'name')
-            .populate('serviceId', 'title');
+            .populate('workerServiceId', 'serviceName price');
 
         // Update worker's rating average
         const workerProfile = await WorkerProfile.findOne({ userId: review.workerId });
