@@ -4,6 +4,13 @@ const emailService = require('./emailService');
 const User = require('../modules/user/user.model');
 
 class NotificationService {
+    constructor() {
+        if (NotificationService.instance) {
+            return NotificationService.instance;
+        }
+        NotificationService.instance = this;
+    }
+
     async createNotification(data) {
         try {
             const notification = await Notification.create({
@@ -46,6 +53,28 @@ class NotificationService {
                 email: userData.email,
                 phone: userData.phone
             }
+        });
+    }
+
+    async notifyNewSupportTicket(ticketData, adminId) {
+        // Create high-priority notification for admin
+        return this.createNotification({
+            userId: adminId,
+            type: 'new_support_ticket',
+            title: 'New Support Ticket Created',
+            message: `New ${ticketData.category} ticket: ${ticketData.subject}`,
+            recipientRole: 'admin',
+            priority: 'high',
+            category: 'system',  // Using system category temporarily
+            metadata: {
+                ticketId: ticketData._id,
+                ticketNumber: ticketData.ticketNumber,
+                category: ticketData.category,
+                subject: ticketData.subject,
+                bookingId: ticketData.bookingId
+            },
+            actionUrl: `/admin/support-tickets/${ticketData._id}`,
+            data: ticketData
         });
     }
 
@@ -317,7 +346,7 @@ class NotificationService {
             pagination: {
                 currentPage: page,
                 totalPages: Math.ceil(total / limit),
-                totalItems: total
+                total
             }
         };
     }

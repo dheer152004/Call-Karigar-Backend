@@ -23,6 +23,7 @@ const supportTicketSchema = new mongoose.Schema({
   bookingId: {
     type: String,
     ref: 'Booking'
+    // required: true
   },
   category: {
     type: String,

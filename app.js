@@ -128,6 +128,7 @@ const workerServiceRoutes = require('./modules/user/worker/workerService/workerS
 const bookingRoutes = require('./modules/booking/booking.routes');
 const paymentRoutes = require('./modules/payment/payment.routes');
 const reviewRoutes = require('./modules/review/review.routes');
+const supportTicketRoutes = require('./modules/supportTicket/supportTicket.routes');
 
 // Register API routes
 app.use('/api/auth', authRoutes);
@@ -148,6 +149,7 @@ app.use('/api/customer-profile', customerProfileRoutes);
 app.use('/api/worker-profile', workerProfileRoutes);
 app.use('/api/worker-documents', workerDocumentRoutes);
 app.use('/api/worker-services', workerServiceRoutes);
+app.use('/api/support-tickets', supportTicketRoutes);
 
 // Worker verification routes
 const workerVerificationRoutes = require('./modules/user/worker/workerProfile/workerVerification.routes');

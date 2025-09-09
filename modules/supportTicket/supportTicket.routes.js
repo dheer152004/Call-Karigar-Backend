@@ -7,7 +7,7 @@ const supportTicketController = require('./supportTicket.controller');
 
 // Validation middleware
 const ticketValidation = [
-    body('category').isIn(['technical', 'billing', 'service', 'complaint', 'other']),
+    body('category').isIn(['payment', 'service', 'worker', 'booking', 'account', 'technical', 'other']),
     body('subject').isString().trim().isLength({ min: 5, max: 100 }),
     body('description').isString().trim().isLength({ min: 10, max: 1000 }),
     body('attachments').optional().isArray()
@@ -19,10 +19,29 @@ const commentValidation = [
 ];
 
 const statusValidation = [
-    body('status').isIn(['open', 'in-progress', 'resolved', 'closed', 'reopened']),
-    body('resolution').optional().isString().trim().isLength({ min: 10, max: 1000 }),
-    body('assignedTo').optional().isMongoId(),
-    body('reopenReason').optional().isString().trim().isLength({ min: 10, max: 500 })
+    body('status')
+        .isString()
+        .trim()
+        .isIn(['open', 'in-progress', 'resolved', 'closed', 'reopened'])
+        .withMessage('Status must be one of: open, in-progress, resolved, closed, or reopened'),
+    body('resolution')
+        .optional()
+        .isString()
+        .trim()
+        .isLength({ min: 10, max: 1000 })
+        .withMessage('Resolution must be between 10 and 1000 characters'),
+    body('assignedTo')
+        .optional()
+        .isString()
+        .trim()
+        .isUUID(4)
+        .withMessage('Invalid assignedTo ID format'),
+    body('reopenReason')
+        .if(body('status').equals('reopened'))
+        .isString()
+        .trim()
+        .isLength({ min: 10, max: 500 })
+        .withMessage('Reopen reason is required and must be between 10 and 500 characters when status is reopened')
 ];
 
 // Routes
