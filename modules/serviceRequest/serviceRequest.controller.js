@@ -4,12 +4,12 @@ const User = require('../user/user.model');
 const WorkerService = require('../user/worker/workerService/workerService.model');
 const NotificationService = require('../../services/notificationService');
 
-// @desc    Create a new service request
+// @desc    Create a new service request with worker selection
 // @route   POST /api/service-requests
 // @access  Private (Customer)
 exports.createServiceRequest = async (req, res) => {
     try {
-        const { serviceId, description, preferredDateTime, addressId } = req.body;
+        const { serviceId, workerServiceId, description, preferredDateTime, addressId } = req.body;
         const customerId = req.user._id;
 
         // Get service details to get category
@@ -21,58 +21,90 @@ exports.createServiceRequest = async (req, res) => {
             });
         }
 
+        // Verify worker service exists and is active
+        const workerService = await WorkerService.findById(workerServiceId)
+            .populate('workerId', 'name email')
+            .populate('serviceId', 'name price');
+            
+        if (!workerService) {
+            return res.status(404).json({
+                success: false,
+                message: 'Worker service not found'
+            });
+        }
+
+        if (workerService.status !== 'active') {
+            return res.status(400).json({
+                success: false,
+                message: 'Selected worker is not currently available for this service'
+            });
+        }
+
         // Create service request
         const serviceRequest = await ServiceRequest.create({
             customerId,
             serviceId,
             serviceCategoryId: service.categoryId,
+            workerServiceId,
+            workerId: workerService.workerId._id,
             description,
             preferredDateTime: new Date(preferredDateTime),
-            location: { addressId }
+            location: { addressId },
+            status: 'pending_worker_acceptance'
         });
 
-        // Find available workers for this service
-        const availableWorkers = await WorkerService.find({
-            serviceId,
-            status: 'active'
-        }).populate('workerId', 'name email');
+        // Send notification to the selected worker
+        await NotificationService.createNotification({
+            userId: workerService.workerId._id,
+            type: 'new_service_request',
+            title: 'New Service Request',
+            message: `You have a new service request for ${service.name}`,
+            category: 'service_request',
+            recipientRole: 'worker',
+            priority: 'high',
+            metadata: {
+                requestId: serviceRequest._id,
+                serviceId: serviceId,
+                serviceName: service.name,
+                customerId: customerId,
+                preferredDateTime: preferredDateTime,
+                workerServiceId: workerServiceId,
+                customerName: req.user.name || 'Customer'
+            },
+            actionUrl: `/worker/service-requests/${serviceRequest._id}`
+        });
 
-        // Send notifications to all available workers
-        for (const worker of availableWorkers) {
-            await NotificationService.createNotification({
-                userId: worker.workerId._id,
-                type: 'new_service_request',
-                title: 'New Service Request',
-                message: `A customer has requested ${service.name} service`,
-                category: 'service_request',
-                priority: 'high',
-                metadata: {
-                    requestId: serviceRequest._id,
-                    serviceId,
-                    serviceName: service.name
-                },
-                actionUrl: `/worker/service-requests/${serviceRequest._id}`
-            });
-        }
-
-        // Notify customer that request has been created
+        // Send confirmation notification to customer
         await NotificationService.createNotification({
             userId: customerId,
             type: 'service_request_created',
             title: 'Service Request Created',
-            message: `Your service request for ${service.name} has been created successfully`,
+            message: `Your service request for ${service.name} has been created and sent to the worker`,
             category: 'service_request',
+            recipientRole: 'customer',
+            priority: 'medium',
             metadata: {
                 requestId: serviceRequest._id,
-                serviceId,
-                serviceName: service.name
+                serviceId: serviceId,
+                serviceName: service.name,
+                workerId: workerService.workerId._id,
+                workerName: workerService.workerId.name,
+                preferredDateTime: preferredDateTime
             },
             actionUrl: `/customer/service-requests/${serviceRequest._id}`
         });
 
+        // Return response with populated data
+        const populatedRequest = await ServiceRequest.findById(serviceRequest._id)
+            .populate('customerId', 'name email phone')
+            .populate('serviceId', 'name description price')
+            .populate('workerId', 'name email phone')
+            .populate('workerServiceId');
+
         res.status(201).json({
             success: true,
-            data: serviceRequest
+            message: 'Service request created successfully',
+            data: populatedRequest
         });
     } catch (error) {
         console.error('Create service request error:', error);

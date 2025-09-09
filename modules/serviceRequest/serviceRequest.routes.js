@@ -12,6 +12,11 @@ const createRequestValidation = [
         .notEmpty().withMessage('Service ID cannot be empty')
         .isUUID().withMessage('Invalid service ID format'),
     
+    body('workerServiceId')
+        .exists().withMessage('Worker Service ID is required')
+        .notEmpty().withMessage('Worker Service ID cannot be empty')
+        .isUUID().withMessage('Invalid Worker Service ID format'),
+    
     body('description')
         .exists().withMessage('Description is required')
         .trim()
