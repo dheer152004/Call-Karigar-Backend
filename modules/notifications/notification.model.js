@@ -21,7 +21,10 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment'],
+        enum: [
+            'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment',
+            'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed'
+        ],
         required: true
     },
     category: {

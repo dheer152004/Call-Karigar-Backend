@@ -70,13 +70,9 @@ exports.createBooking = async (req, res) => {
             });
         }
 
-        // Get worker service and service details
+        // Get worker service with populated service details
         const workerService = await WorkerService.findById(workerServiceId)
-            .populate({
-                path: 'serviceId',
-                select: 'title description baseprice'
-            });
-            
+            .populate('serviceId', 'title description baseprice');
         if (!workerService) {
             return res.status(404).json({
                 success: false,
@@ -91,6 +87,12 @@ exports.createBooking = async (req, res) => {
                 message: 'Worker ID does not match the service provider'
             });
         }
+
+        // Calculate base price and fees
+        const baseAmount = workerService.customPrice;
+        const serviceFeePercentage = 0.15; // 15%
+        const serviceFee = baseAmount * serviceFeePercentage;
+        const subTotal = baseAmount + serviceFee;
 
         // Parse and validate booking date
         const parsedBookingDate = new Date(bookingDate);
@@ -120,12 +122,6 @@ exports.createBooking = async (req, res) => {
                 message: 'Invalid time format. Use 24-hour format (HH:MM)'
             });
         }
-
-        // Calculate amounts and discounts
-        const serviceBasePrice = workerService.serviceId.baseprice;
-        const baseAmount = workerService.customPrice || serviceBasePrice;
-        const serviceFeePercentage = 0.15; // 15%
-        const subTotal = baseAmount + (baseAmount * serviceFeePercentage);
 
         // Initialize discount object
         const discount = {
@@ -270,16 +266,15 @@ exports.createBooking = async (req, res) => {
                     booking,
                     payment,
                     priceBreakdown: {
-                        serviceBasePrice: serviceBasePrice,
-                        workerServicePrice: baseAmount,
-                        serviceFee: (baseAmount * serviceFeePercentage).toFixed(2),
-                        subTotal: subTotal,
+                        workerPrice: baseAmount,
+                        serviceFee,
+                        subTotal,
                         discount: {
                             couponCode: discount.couponCode,
                             percentage: discount.percentage,
                             discountAmount: discount.discountAmount
                         },
-                        totalAmount: totalAmount
+                        totalAmount
                     },
                     message: 'Booking created successfully. Payment pending.'
                 }

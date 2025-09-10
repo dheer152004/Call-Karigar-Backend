@@ -11,14 +11,19 @@ const serviceRequestSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    workerId: {
+        type: String,
+        ref: 'User',
+        required: true
+    },
+    workerServiceId: {
+        type: String,
+        ref: 'WorkerService',
+        required: true
+    },
     serviceId: {
         type: String,
         ref: 'Service',
-        required: true
-    },
-    serviceCategoryId: {
-        type: String,
-        ref: 'ServiceCategory',
         required: true
     },
     status: {

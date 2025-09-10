@@ -40,8 +40,9 @@ const customerProfileSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['new', 'active', 'inactive', 'blocked'],  // Changed enum values
-    default: 'new'  // Changed default value
+    enum: ['new', 'active', 'inactive', 'blocked'],
+    default: 'new',
+    required: true
   },
   preferences: {
     language: {
@@ -99,11 +100,6 @@ const customerProfileSchema = new mongoose.Schema({
       type: Date
     }
   }],
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'blocked'],
-    default: 'active'
-  },
   joinedAt: {
     type: Date,
     default: Date.now
