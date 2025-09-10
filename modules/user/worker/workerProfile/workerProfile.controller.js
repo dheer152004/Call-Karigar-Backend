@@ -99,7 +99,7 @@ exports.getAllWorkerProfiles = async (req, res) => {
 exports.getWorkerProfile = async (req, res) => {
     try {
         const profile = await WorkerProfile.findById(req.params.id)
-            .populate('userId', 'name email phone')
+            .populate('_id', 'name email phone')
             .populate('skills', 'name description');
 
         if (!profile) {

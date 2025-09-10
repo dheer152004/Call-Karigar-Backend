@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const workerProfileSchema = new mongoose.Schema({
-  userId: {
+  _id: {
     type: String,
     ref: 'User',
     required: true
