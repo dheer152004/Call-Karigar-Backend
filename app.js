@@ -47,12 +47,23 @@ const corsOptions = {
 
 // Allow the frontend origin (e.g., React app running on port 3000)
 // In a production environment, replace '*' with your actual frontend domain
+// corsOptions.origin = (origin, callback) => {
+//   if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
+//     callback(null, true);
+//   } else {
+//     callback(new Error('Not allowed by CORS by the CORS policy'));
+//   }
+// };
 corsOptions.origin = (origin, callback) => {
-  if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS by the CORS policy'));
-  }
+    const allowedPorts = [3000, 6000, 8000, 9000];
+    const regex = /^http:\/\/localhost:(\d+)$/;
+    const match = origin && origin.match(regex);
+
+    if (!origin || (match && allowedPorts.includes(Number(match[1])))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS policy made by dheeraj'));
+    }
 };
 
 
