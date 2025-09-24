@@ -21,10 +21,6 @@ const workerDocumentSchema = new mongoose.Schema({
       type: String,
       enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
       required: true
-    },
-    verified: {
-      type: Boolean,
-      default: false
     }
   },
   pan: {
@@ -36,10 +32,6 @@ const workerDocumentSchema = new mongoose.Schema({
       type: String,
       enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
       required: true
-    },
-    verified: {
-      type: Boolean,
-      default: false
     }
   },
   policeVerification: {
@@ -51,10 +43,6 @@ const workerDocumentSchema = new mongoose.Schema({
       type: String,
       enum: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
       required: true
-    },
-    verified: {
-      type: Boolean,
-      default: false
     }
   },
   certifications: {

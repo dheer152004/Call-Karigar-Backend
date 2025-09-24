@@ -5,8 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { protect, authorize } = require('../../../middleware/auth');
 
-// Ensure upload directory exists
-const uploadDir = 'public/uploads/admin';
+const uploadDir = '/tmp/admin';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -131,7 +130,6 @@ router.post('/create-profile', upload.single('photo'), handleMulterError, async 
         // Create new profile
         profile = new AdminProfile({
             userId: req.user.id,
-            username: req.body.username || `admin.${req.user.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
             designation: req.body.designation || 'System Administrator',
             photo: req.file ? `/uploads/admin/${req.file.filename}` : 'default-admin.jpg',
             permissions: [

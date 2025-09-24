@@ -24,15 +24,14 @@ if (process.env.NODE_ENV === 'development') {
 
 // Routes
 const couponRoutes = require('./modules/coupon/coupon.routes');
-const serviceRequestRoutes = require('./modules/serviceRequest/serviceRequest.routes');
+const workerIndependentServiceRoutes = require('./modules/user/worker/workerService/workerIndependentService/workerIndependentService.routes');
+// const serviceRequestRoutes = require('./modules/serviceRequest/serviceRequest.routes');
 
 // Mount routes
 
 // CORS Configuration
 const corsOptions = {
-  origin: function(origin, callback) {
-    callback(null, true); // allow all origins - regardless of port
-  },
+  origin: "*",
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
@@ -48,13 +47,13 @@ const corsOptions = {
 
 // Allow the frontend origin (e.g., React app running on port 3000)
 // In a production environment, replace '*' with your actual frontend domain
-corsOptions.origin = (origin, callback) => {
-  if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
-    callback(null, true);
-  } else {
-    callback(new Error('Not allowed by CORS by the CORS policy'));
-  }
-};
+// corsOptions.origin = (origin, callback) => {
+//   if (!origin || /^http:\/\/localhost:\d+$/.test(origin)) {
+//     callback(null, true);
+//   } else {
+//     callback(new Error('Not allowed by CORS by the CORS policy'));
+//   }
+// };
 
 
 
@@ -94,28 +93,28 @@ app.use(express.urlencoded({ extended: true }));
 
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
 
-// Serve HTML files for different roles
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(publicPath, 'login.html'));
-});
+// // Serve HTML files for different roles
+// app.get('/login', (req, res) => {
+//   res.sendFile(path.join(publicPath, 'login.html'));
+// });
 
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(publicPath, 'register.html'));
-});
+// app.get('/register', (req, res) => {
+//   res.sendFile(path.join(publicPath, 'register.html'));
+// });
 
-app.get('/admin/dashboard', (req, res) => {
-  res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
-});
+// app.get('/admin/dashboard', (req, res) => {
+//   res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
+// });
 
-app.get('/customer/dashboard', (req, res) => {
-  res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
-});
+// app.get('/customer/dashboard', (req, res) => {
+//   res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
+// });
 
-app.get('/worker/dashboard', (req, res) => {
-  res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
-});
+// app.get('/worker/dashboard', (req, res) => {
+//   res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
+// });
 
 // Import routes from modules
 const authRoutes = require('./modules/auth/auth.routes');
@@ -138,6 +137,9 @@ const bookingRoutes = require('./modules/booking/booking.routes');
 const paymentRoutes = require('./modules/payment/payment.routes');
 const reviewRoutes = require('./modules/review/review.routes');
 const supportTicketRoutes = require('./modules/supportTicket/supportTicket.routes');
+
+// Register independent service routes
+app.use('/api', workerIndependentServiceRoutes);
 
 // Register API routes
 app.use('/api/auth', authRoutes);
@@ -168,7 +170,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/coupons', couponRoutes);
-app.use('/api/service-requests', serviceRequestRoutes);
+// app.use('/api/service-requests', serviceRequestRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

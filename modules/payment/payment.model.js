@@ -1,10 +1,21 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 const PaymentSchema = new mongoose.Schema({
     bookingId: {
         type: String,
         ref: 'Booking',
         required: true
+    },
+    paymentId: {
+        type: String,
+        unique: true,
+        default: uuidv4,
+    },
+    transactionId: { // will generate from from frontend
+        type: String,
+        unique: true,
+        sparse: true
     },
     customerId: {
         type: String,
@@ -18,7 +29,7 @@ const PaymentSchema = new mongoose.Schema({
     },
     amount: {
         type: Number,
-        required: true
+        // required: true
     },
     paymentMethod: {
         type: String,
@@ -29,11 +40,6 @@ const PaymentSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
         default: 'pending'
-    },
-    transactionId: {
-        type: String,
-        unique: true,
-        sparse: true
     },
     paymentGateway: {
         type: String,
@@ -47,6 +53,10 @@ const PaymentSchema = new mongoose.Schema({
         type: String,
         unique: true,
         sparse: true
+    },
+    metadata: {
+        type: Object,
+        default: {}
     },
     refundReason: {
         type: String

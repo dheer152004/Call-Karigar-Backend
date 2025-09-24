@@ -1,6 +1,5 @@
 const WorkerProfile = require('./workerProfile.model');
 const User = require('../../user.model');
-const { generateUniqueUsername } = require('../../../../utils/usernameGenerator');
 
 // @desc    Create worker profile
 // @route   POST /api/worker-profile
@@ -33,21 +32,8 @@ exports.createWorkerProfile = async (req, res) => {
             });
         }
 
-        // Generate unique username
-        const username = await generateUniqueUsername('worker', user.name);
-
-        // Validate required fields
-        const { photo, bio, skills } = req.body;
-        if (!photo) {
-            return res.status(400).json({
-                success: false,
-                message: 'Profile photo is required'
-            });
-        }
-
         const profile = await WorkerProfile.create({
             _id: req.user._id, // Use the user's UUID as the profile ID
-            username,
             photo,
             bio,
             skills,
@@ -75,7 +61,7 @@ exports.createWorkerProfile = async (req, res) => {
 exports.getAllWorkerProfiles = async (req, res) => {
     try {
         const profiles = await WorkerProfile.find()
-            .populate('userId', 'name email phone')
+            .populate('_id', 'name email phone') // Populate user details from the _id reference
             .populate('skills', 'name description');
 
         res.status(200).json({
@@ -138,7 +124,7 @@ exports.updateWorkerProfile = async (req, res) => {
         }
 
         // Check ownership or admin status
-        if (profile.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        if (profile._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this profile'
@@ -165,7 +151,7 @@ exports.updateWorkerProfile = async (req, res) => {
             req.params.id,
             updateData,
             { new: true, runValidators: true }
-        ).populate('userId', 'name email phone')
+        ).populate('_id', 'name email phone')
          .populate('skills', 'name description');
 
         res.status(200).json({
@@ -198,7 +184,7 @@ exports.deleteWorkerProfile = async (req, res) => {
         }
 
         // Check ownership or admin status
-        if (profile.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+        if (profile._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to delete this profile'
@@ -236,7 +222,7 @@ exports.updateAvailability = async (req, res) => {
         }
 
         // Check ownership
-        if (profile.userId.toString() !== req.user._id.toString()) {
+        if (profile._id.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this profile'

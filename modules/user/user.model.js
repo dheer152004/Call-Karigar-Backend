@@ -53,15 +53,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  lastLogin: {
-    type: Date
-  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'blocked'],
     default: 'active'
+  },
+  lastLogin: {
+    type: Date
   }
-}, { 
+}, 
+{ 
   timestamps: true,
   versionKey: false 
 });

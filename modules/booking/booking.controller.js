@@ -6,6 +6,84 @@ const Coupon = require('../coupon/coupon.model');
 const bookingService = require('./booking.service');
 const { updateBookingStatus } = require('./booking.service.updateStatus');
 
+exports.handleBookingRequest = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const { action, rejectionReason } = req.body;
+
+        // Validate action
+        if (!['accept', 'reject'].includes(action)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid action. Must be either "accept" or "reject"'
+            });
+        }
+
+        // Find the booking
+        const booking = await Booking.findById(bookingId);
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: 'Booking not found'
+            });
+        }
+
+        // Verify that the worker is the one assigned to this booking
+        if (booking.workerId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to handle this booking'
+            });
+        }
+
+        // Check if booking can be accepted/rejected
+        if (booking.status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot ${action} booking that is not in pending state`
+            });
+        }
+
+        // Update booking status based on action
+        if (action === 'accept') {
+            booking.status = 'confirmed';
+        } else {
+            booking.status = 'cancelled';
+            booking.cancellationReason = rejectionReason || 'Rejected by worker';
+            booking.cancelledBy = 'worker';
+        }
+
+        booking.workerResponseTime = new Date();
+        await booking.save();
+
+        // Send notifications to customer
+        const notificationType = action === 'accept' ? 
+            bookingService.NOTIFICATION_TYPES.BOOKING_CONFIRMED :
+            bookingService.NOTIFICATION_TYPES.BOOKING_CANCELLED;
+
+        await bookingService.createBookingNotification(
+            booking,
+            notificationType,
+            booking.customerId,
+            'customer'
+        );
+
+        res.status(200).json({
+            success: true,
+            message: `Booking ${action === 'accept' ? 'accepted' : 'rejected'} successfully`,
+            data: booking
+        });
+
+    } catch (error) {
+        console.error('Error handling booking request:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error handling booking request',
+            error: error.message
+        });
+    }
+};
+
 exports.createBooking = async (req, res) => {
     console.log('Creating booking with user:', req.user);
     console.log('Request body:', req.body);
@@ -458,13 +536,15 @@ exports.updateBooking = async (req, res) => {
         }
 
         // Check authorization
-        if (req.user.role !== 'admin' && 
+        console.log("user hhhhhaaaaaa:", req.user);
+        if (req.user.role !== 'admin' &&
             req.user._id.toString() !== booking.customerId.toString() && 
             req.user._id.toString() !== booking.workerId.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update this booking'
             });
+
         }
 
         booking = await Booking.findByIdAndUpdate(req.params.id, req.body, {

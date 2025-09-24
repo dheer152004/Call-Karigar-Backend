@@ -97,7 +97,6 @@ function updateProfileLink(user) {
 
 // Set welcome message with user name
 function setWelcomeMessage(user) {
-    const userNameElement = document.getElementById('userName');
     if (userNameElement && user && user.name) {
         userNameElement.textContent = user.name;
     }

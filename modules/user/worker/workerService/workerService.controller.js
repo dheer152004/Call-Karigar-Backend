@@ -28,7 +28,7 @@ exports.addWorkerService = async (req, res) => {
         }
 
         // Check if worker profile exists
-        const workerProfile = await WorkerProfile.findOne({ userId: req.user._id });
+        const workerProfile = await WorkerProfile.findOne({ _id: req.user._id });
         if (!workerProfile) {
             return res.status(404).json({
                 success: false,
@@ -38,7 +38,7 @@ exports.addWorkerService = async (req, res) => {
 
         // Check if worker already offers this service
         const existingService = await WorkerService.findOne({
-            workerId: workerProfile.userId,
+            workerId: workerProfile._id,
             serviceId
         });
 
@@ -50,7 +50,7 @@ exports.addWorkerService = async (req, res) => {
         }
 
         const workerService = await WorkerService.create({
-            workerId: workerProfile.userId, // Use userId instead of _id
+            workerId: workerProfile._id, // Use userId instead of _id
             serviceId,
             customPrice: price,
             experience: experience || '0 years',
@@ -161,7 +161,6 @@ exports.getServiceWorkers = async (req, res) => {
                     bio: profile.bio || '',
                     skills: profile.skills || [],
                     photo: profile.photo || 'default.jpg',
-                    username: profile.username,
                     rating: profile.rating || 0,
                     availability: profile.availability || []
                 },

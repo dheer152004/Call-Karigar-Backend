@@ -15,6 +15,7 @@ exports.createReview = async (req, res) => {
                 message: 'Only customers can create reviews'
             });
         }
+        
 
         // Check if booking exists and is completed
         const booking = await Booking.findById(req.body.bookingId);

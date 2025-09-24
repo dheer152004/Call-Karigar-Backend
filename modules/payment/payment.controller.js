@@ -1,10 +1,86 @@
 const Payment = require('./payment.model');
-const paymentService = require('./payment.service');
 const Booking = require('../booking/booking.model');
+const NotificationService = require('../../services/notificationService');
+
+// Update payment status after successful frontend payment
+exports.verifyPayment = async (req, res) => {
+    try {
+        const { 
+            paymentId,      // Our internal payment ID
+            transactionId,  // Payment gateway transaction ID
+            paymentMethod,  // Payment method used
+            paymentGateway  // Payment gateway used
+        } = req.body;
+
+        // Find the payment record
+        const payment = await Payment.findById(paymentId);
+        if (!payment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Payment not found'
+            });
+        }
+
+                // Allow test transactions in development environment
+        const isTestTransaction = process.env.NODE_ENV === 'development' && 
+            transactionId.startsWith('test_');
+
+        // Validate transaction ID in production
+        if (!isTestTransaction && process.env.NODE_ENV === 'production') {
+            // In production, you might want to add additional validation here
+            if (!transactionId || transactionId.length < 8) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid transaction ID'
+                });
+            }
+        }
+
+        // Update payment status and transaction details
+        payment.status = 'completed';
+        payment.transactionId = transactionId;
+        payment.paymentMethod = paymentMethod;
+        payment.paymentGateway = paymentGateway;
+        await payment.save();
+
+        // Update booking status
+        const booking = await Booking.findById(payment.bookingId);
+        if (booking) {
+            booking.paymentStatus = 'paid';
+            await booking.save();
+        }
+
+        // Send notifications
+        // await NotificationService.sendNotification({
+        //     userId: payment.customerId,
+        //     type: 'payment_completed',
+        //     title: 'Payment Successful',
+        //     message: `Your payment of ₹${payment.amount} has been completed successfully.`,
+        //     metadata: {
+        //         bookingId: payment.bookingId,
+        //         paymentId: payment._id
+        //     }
+        // });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Payment verified successfully',
+            data: payment
+        });
+
+    } catch (error) {
+        console.error('Payment verification error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error verifying payment',
+            error: error.message
+        });
+    }
+};
 
 exports.createPayment = async (req, res) => {
     try {
-        const { bookingId, amount, paymentMethod, paymentGateway } = req.body;
+        const { bookingId, paymentMethod, paymentGateway } = req.body;
 
         // Find the booking
         const booking = await Booking.findById(bookingId);
@@ -20,30 +96,47 @@ exports.createPayment = async (req, res) => {
             bookingId,
             customerId: booking.customerId,
             workerId: booking.workerId,
-            amount,
+            amount: booking.totalAmount,
             paymentMethod,
             paymentGateway,
             status: 'pending'
         });
 
-        // Create order in payment gateway if not cash payment
-        if (paymentGateway !== 'cash') {
-            const order = await paymentService.createPaymentOrder(amount);
-            payment.metadata = { orderId: order.id };
-            await payment.save();
-        }
+        // Store basic payment metadata
+        payment.metadata = {
+            bookingId: booking.id,
+            amount: booking.totalAmount,
+            currency: 'INR'
+        };
+        await payment.save();
 
-        // Create notification for customer
-        await paymentService.createPaymentNotification(
-            payment,
-            paymentService.NOTIFICATION_TYPES.PAYMENT_INITIATED,
-            payment.customerId,
-            'customer'
-        );
+        // Send notification using NotificationService will implement in future
+        // await NotificationService.sendNotification({
+        //     userId: payment.customerId,
+        //     type: 'payment_initiated',
+        //     title: 'Payment Initiated',
+        //     message: `Payment of ₹${payment.amount} has been initiated for your booking.`,
+        //     metadata: {
+        //         bookingId: payment.bookingId,
+        //         paymentId: payment._id
+        //     }
+        // });
 
-        res.status(201).json({
+        // Return payment details for frontend
+        return res.status(201).json({
             success: true,
-            data: payment
+            data: {
+                payment,
+                paymentDetails: {
+                    amount: booking.totalAmount,
+                    currency: 'INR',
+                    name: 'Call Karigar Service',
+                    description: `Payment for booking #${booking.id}`,
+                    customerId: booking.customerId,
+                    bookingId: booking.id,
+                    paymentId: payment._id,
+                }
+            }
         });
     } catch (error) {
         console.error('Create payment error:', error);
@@ -57,18 +150,50 @@ exports.createPayment = async (req, res) => {
 
 exports.getAllPayments = async (req, res) => {
     try {
+        // Verify admin access
+        if (req.user.role !== 'admin') {
+            console.log('Unauthorized access attempt:', req.user.role);
+            return res.status(403).json({
+                success: false,
+                message: 'Only admin users can access all payments'
+            });
+        }
+
+        console.log('Fetching all payments for admin:', req.user._id);
+
+        // Add pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Get total count for pagination
+        const totalCount = await Payment.countDocuments();
+
+        // Query with pagination and sorting
         const payments = await Payment.find()
-            .populate('customerId', 'name email')
-            .populate('workerId', 'name email')
-            .populate('bookingId');
+            .populate('customerId', 'name email phone')
+            .populate('workerId', 'name email phone')
+            .populate('bookingId')
+            .sort({ createdAt: -1 }) // Sort by newest first
+            .skip(skip)
+            .limit(limit);
+
+        console.log(`Found ${payments.length} payments`);
 
         res.status(200).json({
             success: true,
             count: payments.length,
+            total: totalCount,
+            pagination: {
+                page,
+                limit,
+                totalPages: Math.ceil(totalCount / limit),
+                hasMore: skip + payments.length < totalCount
+            },
             data: payments
         });
     } catch (error) {
-        console.error('Get payments error:', error);
+        console.error('Get all payments error:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching payments',
@@ -102,14 +227,65 @@ exports.getCustomerPayments = async (req, res) => {
 exports.getWorkerPayments = async (req, res) => {
     try {
         const payments = await Payment.find({ workerId: req.user._id })
-            .populate('customerId', 'name email')
-            .populate('bookingId')
+            .populate('customerId', 'name email phone')
+            .populate({
+                path: 'workerId',
+                select: 'name email phone services',
+                populate: {
+                    path: 'services',
+                    select: 'serviceName serviceDescription price'
+                }
+            })
+            .populate({
+                path: 'bookingId',
+                populate: [
+                    {
+                        path: 'serviceId',
+                        select: 'serviceName serviceDescription price'
+                    },
+                    {
+                        path: 'address',
+                        select: 'addressLine1 addressLine2 city state pincode'
+                    }
+                ]
+            })
             .sort({ createdAt: -1 });
+
+        // Format the response data
+        const formattedPayments = payments.map(payment => ({
+            paymentId: payment._id,
+            amount: payment.amount,
+            status: payment.status,
+            paymentMethod: payment.paymentMethod,
+            transactionId: payment.transactionId,
+            createdAt: payment.createdAt,
+            customer: {
+                id: payment.customerId._id,
+                name: payment.customerId.name,
+                email: payment.customerId.email,
+                phone: payment.customerId.phone
+            },
+            worker: {
+                id: payment.workerId._id,
+                name: payment.workerId.name,
+                email: payment.workerId.email,
+                phone: payment.workerId.phone,
+                services: payment.workerId.services
+            },
+            booking: {
+                id: payment.bookingId._id,
+                service: payment.bookingId.serviceId,
+                address: payment.bookingId.address,
+                status: payment.bookingId.status,
+                scheduledDate: payment.bookingId.scheduledDate,
+                totalAmount: payment.bookingId.totalAmount
+            }
+        }));
 
         res.status(200).json({
             success: true,
             count: payments.length,
-            data: payments
+            data: formattedPayments
         });
     } catch (error) {
         console.error('Get worker payments error:', error);

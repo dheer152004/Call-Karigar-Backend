@@ -12,12 +12,6 @@ const adminProfileSchema = new mongoose.Schema({
         unique: true,
         ref: 'User'
     },
-    username: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true
-    },
     permissions: [{
         type: String,
         enum: ['manage_users', 'manage_services', 'manage_bookings', 'manage_payments', 'manage_reports', 'manage_settings'],

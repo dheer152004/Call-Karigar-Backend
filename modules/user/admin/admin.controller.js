@@ -4,11 +4,9 @@ const { v4: uuidv4 } = require('uuid');
 // Create admin profile
 exports.createAdminProfile = async (userId, name) => {
     try {
-        const username = `admin.${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
         
         const adminProfile = new AdminProfile({
             userId,
-            username,
             permissions: ['manage_users', 'manage_services', 'manage_bookings', 'manage_payments', 'manage_reports', 'manage_settings']
         });
 

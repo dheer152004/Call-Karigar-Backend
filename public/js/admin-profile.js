@@ -54,7 +54,6 @@ class AdminProfile extends DashboardManager {
         // Populate form fields
         const form = this.profileForm;
         form.name.value = this.user.name;
-        form.username.value = this.profile.username;
         form.email.value = this.user.email;
         form.phone.value = this.user.phone;
         form.department.value = this.profile.department;

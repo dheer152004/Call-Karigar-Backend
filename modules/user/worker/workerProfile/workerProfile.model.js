@@ -5,12 +5,6 @@ const workerProfileSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true
-  },
   phoneNumber: {
     type: String,
     required: true,
@@ -37,11 +31,11 @@ const workerProfileSchema = new mongoose.Schema({
     ref: 'ServiceCategory',
     default: []
   }],
-  address: {
-    type: String,
-    ref: 'Address',
-    default: null
-  },
+  // address: {
+  //   type: String,
+  //   ref: 'Address',
+  //   default: null
+  // },
   status: {
     type: String,
     enum: ['pending', 'active', 'inactive', 'suspended'],
@@ -102,4 +96,13 @@ const workerProfileSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('WorkerProfile', workerProfileSchema);
+// Create the model
+const WorkerProfile = mongoose.model('WorkerProfile', workerProfileSchema);
+
+// Drop all indexes and recreate only the necessary ones
+WorkerProfile.collection.dropIndexes().catch(() => {});
+
+// Create required indexes
+WorkerProfile.collection.createIndex({ userId: 1 }, { unique: true }).catch(() => {});
+
+module.exports = WorkerProfile;

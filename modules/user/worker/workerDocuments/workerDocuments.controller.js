@@ -114,25 +114,25 @@ exports.uploadDocuments = async (req, res) => {
                 await workerDocument.save();
             }
 
-            // Notify admins about new document upload
-            const admins = await User.find({ role: 'admin' });
-            for (const admin of admins) {
-                await NotificationService.createNotification({
-                    userId: admin._id,
-                    type: 'document_uploaded',
-                    category: 'worker',
-                    title: 'New Worker Documents Uploaded',
-                    message: `Worker ${req.user.name} has uploaded new documents for verification.`,
-                    recipientRole: 'admin',
-                    priority: 'high',
-                    metadata: {
-                        workerId,
-                        workerName: req.user.name,
-                        documentId: workerDocument._id
-                    },
-                    actionUrl: `/admin/worker-documents/${workerDocument._id}`
-                });
-            }
+            // Notify admins about new document upload -- for future 
+            // const admins = await User.find({ role: 'admin' });
+            // for (const admin of admins) {
+            //     await NotificationService.createNotification({
+            //         userId: admin._id,
+            //         type: 'document_uploaded',
+            //         category: 'worker',
+            //         title: 'New Worker Documents Uploaded',
+            //         message: `Worker ${req.user.name} has uploaded new documents for verification.`,
+            //         recipientRole: 'admin',
+            //         priority: 'high',
+            //         metadata: {
+            //             workerId,
+            //             workerName: req.user.name,
+            //             documentId: workerDocument._id
+            //         },
+            //         actionUrl: `/admin/worker-documents/${workerDocument._id}`
+            //     });
+            // }
 
             return res.status(201).json({
                 success: true,

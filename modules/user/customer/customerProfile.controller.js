@@ -1,7 +1,6 @@
 const CustomerProfile = require('./customerProfile.model');
 const Address = require('../../address/address.model');
 const User = require('../user.model');
-const { generateUniqueUsername } = require('../../../utils/usernameGenerator');
 
 // Helper function to validate customer profile data
 const validateProfileData = (data) => {
@@ -87,13 +86,10 @@ exports.createCustomerProfile = async (req, res) => {
             });
         }
 
-        // Generate unique username
-        const username = await generateUniqueUsername('customer', user.name);
 
         // Create basic profile with essential data
         const profileData = {
             userId: req.user.id,
-            username,
             phoneNumber: user.phone,
             email: user.email,
             preferences: {

@@ -32,10 +32,6 @@ const workerServiceSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  },
-  isActive: {
-    type: Boolean,
-    default: true
   }
 }, {
   timestamps: true

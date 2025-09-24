@@ -77,7 +77,7 @@ exports.getUserAddresses = async (req, res) => {
 exports.getAllAddresses = async (req, res) => {
     try {
         console.log('Admin requesting all addresses');
-        const addresses = await Address.find().populate('userId', 'username email');
+        const addresses = await Address.find().populate('userId', ' email');
         res.json({ success: true, data: addresses });
     } catch (error) {
         console.error('Error getting all addresses:', error);
@@ -117,8 +117,8 @@ exports.getUserAddress = async (req, res) => {
 exports.getAddress = async (req, res) => {
     try {
         const address = await Address.findById(req.params.id)
-            .populate('userId', 'username email');
-        
+            .populate('userId', 'email');
+    
         if (!address) {
             return res.status(404).json({
                 success: false,

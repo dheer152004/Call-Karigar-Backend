@@ -23,7 +23,8 @@ const notificationSchema = new mongoose.Schema({
         type: String,
         enum: [
             'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment',
-            'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed'
+            'booking_created', 'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed',
+            'worker_registered', 'customer_registered', 'profile_updated', 'account_verified'
         ],
         required: true
     },

@@ -4,22 +4,34 @@ const User = require('../modules/user/user.model');
 // Protect routes
 exports.protect = async (req, res, next) => {
   try {
-    console.log('Auth Headers:', req.headers.authorization);
+    console.log('Request Headers:', req.headers);
+    console.log('Auth Header:', req.headers.authorization);
     
     // Get token from header
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
-      console.log('No token provided');
+      console.log('No token provided. Authorization header:', req.headers.authorization);
       return res.status(401).json({ message: 'Not authorized - No token provided' });
     }
+    console.log('Token found:', token.substring(0, 10) + '...');
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Decoded token:', { ...decoded, id: decoded.id });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Token verified successfully. Decoded:', { userId: decoded.id, role: decoded.role });
+    } catch (error) {
+      console.log('Token verification failed:', error.message);
+      return res.status(401).json({ message: 'Invalid token - ' + error.message });
+    }
     
     // Get user from database
     const user = await User.findById(decoded.id).select('-password');
-    console.log('Found user:', user ? { ...user.toJSON(), id: user._id } : null);
+    if (!user) {
+      console.log('User not found for id:', decoded.id);
+      return res.status(401).json({ message: 'Token is not valid - User not found' });
+    }
+    console.log('User found:', { id: user._id, role: user.role });
     
     if (!user) {
       return res.status(401).json({ message: 'Token is not valid - User not found' });

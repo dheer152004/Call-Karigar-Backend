@@ -4,7 +4,8 @@ const emailService = require('../../services/emailService');
 class BookingService {
     constructor() {
         this.NOTIFICATION_TYPES = {
-            BOOKING_CREATED: 'booking_confirmed',
+            BOOKING_CREATED: 'booking_created',
+            BOOKING_CONFIRMED: 'booking_confirmed',
             BOOKING_UPDATED: 'booking_updated',
             BOOKING_CANCELLED: 'booking_cancelled',
             BOOKING_COMPLETED: 'booking_completed'

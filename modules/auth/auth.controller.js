@@ -7,30 +7,6 @@ const AdminProfile = require('../user/admin/adminProfile.model');
 const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
 
-// Helper function to generate a unique username from name and email
-const generateUsername = async (user, Model, isWorker = false) => {
-    // Get name and email parts
-    const namePart = user.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const emailPart = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    // Create base username
-    let baseUsername = `${namePart}.${emailPart}`;
-    if (isWorker) baseUsername += '.pro';
-    
-    // Try the base username first
-    let username = baseUsername;
-    let counter = 1;
-    
-    // Keep trying until we find a unique username
-    while (await Model.findOne({ username })) {
-        username = isWorker ? 
-            `${baseUsername}${counter}` : 
-            `${baseUsername}${counter}`;
-        counter++;
-    }
-
-    return username;
-};
 
 const createBasicProfile = async (user) => {
     let profile = null;
@@ -53,7 +29,6 @@ const createBasicProfile = async (user) => {
             redirectTo = '/admin/update-profile';
             message = 'Admin registration successful. Please complete your profile.';
             break;
-
         case 'customer':
             // Create minimal customer profile
             const customerProfile = await CustomerProfile.create({
@@ -63,9 +38,6 @@ const createBasicProfile = async (user) => {
                 email: user.email,
                 photo: 'default-profile.jpg',
                 bio: '',
-                address: [],
-                savedAddresses: [],
-                savedWorkers: [],
                 preferences: {
                     language: 'en',
                     notifications: true,
@@ -79,24 +51,10 @@ const createBasicProfile = async (user) => {
                     totalSpent: 0
                 }
             });
-
-            profile = {
-                _id: customerProfile._id,
-                userId: user._id
-            };
-            
-            redirectTo = '/customer/update-profile';
-            message = 'Customer registration successful. Please complete your profile.';
-            break;
-
         case 'worker':
-            // Generate unique username for worker
-            const username = await generateUsername(user, WorkerProfile, true);
-            
-            // Create worker profile with generated username
+            // Create worker profile
             const workerProfile = await WorkerProfile.create({
-                userId: user._id,
-                username: username,
+                _id: user._id,
                 phoneNumber: user.phone,
                 email: user.email,
                 photo: 'default-worker.jpg',
@@ -123,11 +81,6 @@ const createBasicProfile = async (user) => {
                     ratingCount: 0
                 }
             });
-
-            profile = {
-                _id: workerProfile._id,
-                userId: user._id
-            };
             
             redirectTo = '/worker/update-profile';
             message = 'Worker registration successful. Please complete your profile and verify your documents.';
@@ -135,7 +88,7 @@ const createBasicProfile = async (user) => {
     }
 
     return {
-        profile: { _id: profile.insertedId, userId: user._id },
+        // profile: { _id: profile.insertedId, userId: user._id },
         message,
         redirectTo
     };
@@ -173,9 +126,6 @@ const getBaseProfileData = (user, addressId = null) => {
         savedAddresses: addressId ? [addressId] : []
     };
 };
-
-// Create initial profile is handled by createBasicProfile function
-// This section is no longer needed as we're creating minimal profiles during registration
 
 // Register a new user
 exports.registerUser = async (req, res) => {
@@ -233,8 +183,8 @@ exports.registerUser = async (req, res) => {
 
         // Hash password
         const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
+        // const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = password;
         console.log('Creating new user:', {
             name: name.trim(),
             email: normalizedEmail,
@@ -242,12 +192,12 @@ exports.registerUser = async (req, res) => {
             role: role || 'customer'
         });
 
-        // Create user with hashed password using create method
+        // Create user (password will be hashed by the model's pre-save middleware)
         const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
             phone: normalizedPhone,
-            password: hashedPassword,
+            password: password,
             role: role || 'customer',
             status: 'active',
             isPhoneVerified: false,
@@ -332,7 +282,10 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     try {
         console.log('Login attempt:', { ...req.body, password: '***' });
-        const { identifier, password } = req.body;
+        const { identifier, password: rawPassword } = req.body;
+        
+        // Clean and normalize the password
+        const password = rawPassword ? rawPassword.trim() : '';
         
         // Validate input
         if (!identifier || !password) {
@@ -398,8 +351,11 @@ exports.loginUser = async (req, res) => {
         // Check password
         console.log('Comparing password for user:', user._id);
         try {
-            const isMatch = await bcrypt.compare(password, user.password);
-            console.log('Password match result:', isMatch);
+            console.log('Login - Attempting password comparison');
+            
+            // Use the model's comparePassword method
+            const isMatch = await user.comparePassword(password);
+            console.log('Login - Password match result:', isMatch);
             
             if (!isMatch) {
                 return res.status(401).json({
@@ -437,8 +393,7 @@ exports.loginUser = async (req, res) => {
         console.log('Looking for profile with role:', user.role);
         profile = await Profile.findOne({ userId: user._id });
         console.log('Profile found:', profile ? { 
-            _id: profile._id, 
-            username: profile.username,
+            _id: profile._id,
             status: profile.status 
         } : 'No profile found');
 
@@ -490,7 +445,6 @@ exports.loginUser = async (req, res) => {
         // Prepare response based on user role
         // Prepare profile data
         const profileData = profile ? {
-            username: profile.username,
             photo: profile.photo || 'default-profile.jpg',
             status: profile.status,
             bio: profile.bio,
@@ -521,7 +475,6 @@ exports.loginUser = async (req, res) => {
                     createdAt: user.createdAt,
                     isEmailVerified: user.isEmailVerified || false,
                     isPhoneVerified: user.isPhoneVerified || false,
-                    username: profile?.username
                 },
                 profile: profileData,
                 addresses: addresses,

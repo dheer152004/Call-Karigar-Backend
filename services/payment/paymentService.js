@@ -34,8 +34,8 @@ class PaymentService {
     /**
      * Verify payment signature
      */
-    verifyPaymentSignature(orderId, paymentId, signature) {
-        const text = orderId + '|' + paymentId;
+    verifyPaymentSignature(bookingId, paymentId, signature) {
+        const text = bookingId + '|' + paymentId;
         const generated_signature = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(text)
