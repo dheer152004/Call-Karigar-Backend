@@ -515,3 +515,129 @@ exports.deleteWorkerService = async (req, res) => {
         });
     }
 };
+
+
+
+
+exports.searchWorkerServicesFlexiblebyGet = async (req, res) => {
+    try {
+        // --- MODIFICATION START ---
+        // Parameters are now strictly extracted from req.query for the GET method.
+        const {
+            keyword,
+            serviceId,
+            minPrice,
+            maxPrice,
+            skills,
+            minRating,
+            page = 1,
+            limit = 20
+        } = req.query; // Directly use req.query
+        // --- MODIFICATION END ---
+
+
+        // Build base query for the initial database search (price, serviceId, isActive)
+        const match = { isActive: true };
+        if (serviceId) match.serviceId = serviceId;
+        if (minPrice || maxPrice) {
+            match.customPrice = {};
+            if (minPrice) match.customPrice.$gte = Number(minPrice);
+            if (maxPrice) match.customPrice.$lte = Number(maxPrice);
+        }
+
+        // 1. Find candidate worker services based on MongoDB-friendly criteria (Price, Service ID)
+        // Note: The mock `WorkerService.find` handles the filtering based on the `match` object.
+        let workerServices = await WorkerService.find(match).lean();
+        if (!workerServices.length) {
+            return res.status(200).json({ success: true, count: 0, data: [], message: 'No services found matching initial criteria.' });
+        }
+
+        // Extract IDs for lookup
+        const serviceIds = [...new Set(workerServices.map(ws => ws.serviceId.toString()))];
+        const workerIds = [...new Set(workerServices.map(ws => ws.workerId.toString()))];
+
+        // 2. Get all necessary details in parallel
+        const [services, workers, workerProfiles] = await Promise.all([
+            Service.find({ _id: { $in: serviceIds } }).select('title description basePrice').lean(),
+            User.find({ _id: { $in: workerIds }, role: 'worker' }).select('name email phone').lean(),
+            WorkerProfile.find({ userId: { $in: workerIds } }).select('userId bio skills photo username rating availability').lean()
+        ]);
+
+        // Create fast lookup maps
+        const servicesMap = new Map(services.map(s => [s._id.toString(), s]));
+        const workersMap = new Map(workers.map(w => [w._id.toString(), w]));
+        const profilesMap = new Map(workerProfiles.map(p => [p.userId.toString(), p]));
+
+        // 3. Normalize requested skills for in-memory filtering
+        let reqSkills = [];
+        if (skills) {
+            if (Array.isArray(skills)) reqSkills = skills.map(s => s.toString().toLowerCase().trim());
+            else reqSkills = skills.toString().split(',').map(s => s.toLowerCase().trim());
+        }
+
+        // 4. In-memory Filtering (Keyword, Skills, Rating)
+        const keywordRegex = keyword ? new RegExp(keyword.toString().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+        let filtered = workerServices.filter(ws => {
+            const service = servicesMap.get(ws.serviceId.toString()) || {};
+            const profile = profilesMap.get(ws.workerId.toString()) || {};
+
+            // A. Keyword: match service title/description
+            if (keywordRegex) {
+                const hay = [service.title, service.description].join(' ');
+                if (!keywordRegex.test(hay)) return false;
+            }
+            // B. Skills: require all requested skills in profile
+            if (reqSkills.length) {
+                const workerSkills = (profile.skills || []).map(s => s.toString().toLowerCase());
+                // The `every` check ensures ALL requested skills are present.
+                const hasAll = reqSkills.every(rs => workerSkills.includes(rs));
+                if (!hasAll) return false;
+            }
+            // C. Rating
+            if (minRating) {
+                const rating = Number(profile.rating || 0);
+                if (rating < Number(minRating)) return false;
+            }
+            return true;
+        });
+
+        // 5. Pagination (in-memory, since the filtering above is in-memory)
+        const total = filtered.length;
+        const pageNum = Math.max(1, Number(page) || 1);
+        const perPage = Math.max(1, Math.min(100, Number(limit) || 20));
+        const start = (pageNum - 1) * perPage;
+        const paged = filtered.slice(start, start + perPage);
+
+        // 6. Build the final response objects
+        const results = paged.map(ws => {
+            const worker = workersMap.get(ws.workerId.toString()) || {};
+            const profile = profilesMap.get(ws.workerId.toString()) || {};
+            const service = servicesMap.get(ws.serviceId.toString()) || {};
+
+            // Ensure worker object is safely destructured if found
+            const basicInfo = worker ? { name: worker.name, email: worker.email, phone: worker.phone } : {};
+
+            return {
+                _id: ws._id,
+                workerId: ws.workerId,
+                serviceId: ws.serviceId,
+                customPrice: ws.customPrice,
+                experience: ws.experience,
+                description: ws.description,
+                isActive: ws.isActive,
+                serviceDetails: service,
+                workerProfile: profile,
+                basicInfo: basicInfo
+            };
+        });
+
+        // 7. Send the successful response
+        return res.status(200).json({ success: true, total, page: pageNum, perPage, count: results.length, data: results });
+    } catch (error) {
+        console.error('Flexible search worker services error:', error);
+        // Include a stack trace for better debugging in development
+        const errorMessage = error.message;
+        const stack = error.stack;
+        return res.status(500).json({ success: false, message: 'Error searching worker services', error: errorMessage, stack });
+    }
+};
