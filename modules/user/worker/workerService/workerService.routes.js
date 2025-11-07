@@ -8,6 +8,7 @@ const {
     updateWorkerService,
     toggleServiceStatus,
     deleteWorkerService
+    ,searchWorkerServicesFlexible
 } = require('./workerService.controller');
 const { protect, authorize } = require('../../../../middleware/auth');
 
@@ -15,6 +16,9 @@ const { protect, authorize } = require('../../../../middleware/auth');
 router.get('/', getAllWorkerServices);
 router.get('/worker/:workerId', getWorkerServices);
 router.get('/service/:serviceId', getServiceWorkers);
+// Flexible public search for all requirements
+router.get('/search-all', searchWorkerServicesFlexible);
+router.post('/search-all', searchWorkerServicesFlexible);
 
 // Protected routes (Worker only)
 router.use(protect);

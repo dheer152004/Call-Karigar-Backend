@@ -77,6 +77,119 @@ exports.addWorkerService = async (req, res) => {
     }
 };
 
+// @desc    Flexible search for all worker services by any requirement
+// @route   GET/POST /api/worker-services/search-all
+// @access  Public
+exports.searchWorkerServicesFlexible = async (req, res) => {
+    try {
+        // Accept from query or body
+        const params = req.method === 'POST' ? req.body : req.query;
+        const {
+            keyword,
+            serviceId,
+            minPrice,
+            maxPrice,
+            skills,
+            minRating,
+            page = 1,
+            limit = 20
+        } = params;
+
+        // Build base query
+        const match = { isActive: true };
+        if (serviceId) match.serviceId = serviceId;
+        if (minPrice || maxPrice) {
+            match.customPrice = {};
+            if (minPrice) match.customPrice.$gte = Number(minPrice);
+            if (maxPrice) match.customPrice.$lte = Number(maxPrice);
+        }
+
+        // Find candidate worker services
+        let workerServices = await WorkerService.find(match).lean();
+        if (!workerServices.length) {
+            return res.status(200).json({ success: true, count: 0, data: [] });
+        }
+
+        // Get service details
+        const serviceIds = [...new Set(workerServices.map(ws => ws.serviceId.toString()))];
+        const services = await Service.find({ _id: { $in: serviceIds } }).select('title description basePrice').lean();
+        const servicesMap = new Map(services.map(s => [s._id.toString(), s]));
+
+        // Get worker details
+        const workerIds = [...new Set(workerServices.map(ws => ws.workerId.toString()))];
+        const workers = await User.find({ _id: { $in: workerIds }, role: 'worker' }).select('name email phone').lean();
+        const workersMap = new Map(workers.map(w => [w._id.toString(), w]));
+
+        // Get worker profiles
+        const workerProfiles = await WorkerProfile.find({ userId: { $in: workerIds } }).select('userId bio skills photo username rating availability').lean();
+        const profilesMap = new Map(workerProfiles.map(p => [p.userId.toString(), p]));
+
+        // Normalize skills
+        let reqSkills = [];
+        if (skills) {
+            if (Array.isArray(skills)) reqSkills = skills.map(s => s.toString().toLowerCase().trim());
+            else reqSkills = skills.toString().split(',').map(s => s.toLowerCase().trim());
+        }
+
+        // Filter by keyword, skills, rating
+        const keywordRegex = keyword ? new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+        let filtered = workerServices.filter(ws => {
+            const service = servicesMap.get(ws.serviceId.toString()) || {};
+            const worker = workersMap.get(ws.workerId.toString()) || {};
+            const profile = profilesMap.get(ws.workerId.toString()) || {};
+
+            // Keyword: match service title/description
+            if (keywordRegex) {
+                const hay = [service.title, service.description].join(' ');
+                if (!keywordRegex.test(hay)) return false;
+            }
+            // Skills: require all requested skills in profile
+            if (reqSkills.length) {
+                const workerSkills = (profile.skills || []).map(s => s.toString().toLowerCase());
+                const hasAll = reqSkills.every(rs => workerSkills.includes(rs));
+                if (!hasAll) return false;
+            }
+            // Rating
+            if (minRating) {
+                const rating = Number(profile.rating || 0);
+                if (rating < Number(minRating)) return false;
+            }
+            return true;
+        });
+
+        // Pagination
+        const total = filtered.length;
+        const pageNum = Math.max(1, Number(page) || 1);
+        const perPage = Math.max(1, Math.min(100, Number(limit) || 20));
+        const start = (pageNum - 1) * perPage;
+        const paged = filtered.slice(start, start + perPage);
+
+        // Build response
+        const results = paged.map(ws => {
+            const worker = workersMap.get(ws.workerId.toString()) || {};
+            const profile = profilesMap.get(ws.workerId.toString()) || {};
+            const service = servicesMap.get(ws.serviceId.toString()) || {};
+            return {
+                _id: ws._id,
+                workerId: ws.workerId,
+                serviceId: ws.serviceId,
+                customPrice: ws.customPrice,
+                experience: ws.experience,
+                description: ws.description,
+                isActive: ws.isActive,
+                serviceDetails: service,
+                workerProfile: profile,
+                basicInfo: worker ? { name: worker.name, email: worker.email, phone: worker.phone } : {}
+            };
+        });
+
+        return res.status(200).json({ success: true, total, page: pageNum, perPage, count: results.length, data: results });
+    } catch (error) {
+        console.error('Flexible search worker services error:', error);
+        return res.status(500).json({ success: false, message: 'Error searching worker services', error: error.message });
+    }
+};
+
 // @desc    Get all services offered by a worker
 // @route   GET /api/worker-services/worker/:workerId
 // @access  Public
