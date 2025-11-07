@@ -149,6 +149,11 @@ const paymentRoutes = require('./modules/payment/payment.routes');
 const reviewRoutes = require('./modules/review/review.routes');
 const supportTicketRoutes = require('./modules/supportTicket/supportTicket.routes');
 
+
+const locationRoutes = require('./modules/location/location.routes');
+app.use('/api/location', locationRoutes);
+
+
 // Register independent service routes
 app.use('/api', workerIndependentServiceRoutes);
 

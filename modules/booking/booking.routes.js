@@ -31,7 +31,7 @@ router.post('/:bookingId/complete', authorize('worker'), require('./booking.comp
 // Mixed access routes
 router.get('/:id', getBooking);
 router.put('/:id', updateBooking);
-router.delete('/:id', cancelBooking);
+router.put('/:id', cancelBooking);
 
 // Customer-specific status update route
 router.patch('/:bookingId/status', authorize('customer'), updateBookingStatus);
