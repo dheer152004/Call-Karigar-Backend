@@ -55,7 +55,7 @@ const corsOptions = {
 //   }
 // };
 corsOptions.origin = (origin, callback) => {
-    const allowedPorts = [3000, 6000, 8000, 9000];
+    const allowedPorts = [3000, 5173, 6000, 8000, 9000];
     const regex = /^http:\/\/localhost:(\d+)$/;
     const match = origin && origin.match(regex);
 
