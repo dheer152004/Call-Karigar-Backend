@@ -192,6 +192,81 @@ exports.getServiceWorkers = async (req, res) => {
     }
 };
 
+// @desc    Get all workers' services (public)
+// @route   GET /api/worker-services
+// @access  Public
+exports.getAllWorkerServices = async (req, res) => {
+    try {
+        // Fetch all active worker services
+        const workerServices = await WorkerService.find({ isActive: true }).lean();
+
+        // If none found, return empty array
+        if (!workerServices || workerServices.length === 0) {
+            return res.status(200).json({
+                success: true,
+                count: 0,
+                data: []
+            });
+        }
+
+        // Collect unique worker and service IDs
+        const workerIds = [...new Set(workerServices.map(ws => ws.workerId.toString()))];
+        const serviceIds = [...new Set(workerServices.map(ws => ws.serviceId.toString()))];
+
+        // Fetch users (workers) in one query
+        const workers = await User.find({ _id: { $in: workerIds }, role: 'worker' })
+            .select('name email phone')
+            .lean();
+        const workersMap = new Map(workers.map(w => [w._id.toString(), w]));
+
+        // Fetch worker profiles in one query
+        const workerProfiles = await WorkerProfile.find({ userId: { $in: workerIds } })
+            .select('userId bio skills photo username rating availability')
+            .lean();
+        const profilesMap = new Map(workerProfiles.map(p => [p.userId.toString(), p]));
+
+        // Fetch service details in one query
+        const services = await Service.find({ _id: { $in: serviceIds } })
+            .select('title description basePrice')
+            .lean();
+        const servicesMap = new Map(services.map(s => [s._id.toString(), s]));
+
+        // Combine data
+        const results = workerServices.map(ws => {
+            const workerIdStr = ws.workerId.toString();
+            return {
+                _id: ws._id,
+                workerId: ws.workerId,
+                serviceId: ws.serviceId,
+                customPrice: ws.customPrice,
+                experience: ws.experience,
+                description: ws.description,
+                isActive: ws.isActive,
+                serviceDetails: servicesMap.get(ws.serviceId.toString()) || {},
+                workerProfile: (profilesMap.get(workerIdStr) || {}),
+                basicInfo: workersMap.get(workerIdStr) ? {
+                    name: workersMap.get(workerIdStr).name,
+                    email: workersMap.get(workerIdStr).email,
+                    phone: workersMap.get(workerIdStr).phone
+                } : {}
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            count: results.length,
+            data: results
+        });
+    } catch (error) {
+        console.error('Get all worker services error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching worker services',
+            error: error.message
+        });
+    }
+};
+
 // @desc    Update worker service
 // @route   PUT /api/worker-services/:id
 // @access  Private (Worker only)

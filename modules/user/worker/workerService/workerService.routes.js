@@ -4,6 +4,7 @@ const {
     addWorkerService,
     getWorkerServices,
     getServiceWorkers,
+    getAllWorkerServices,
     updateWorkerService,
     toggleServiceStatus,
     deleteWorkerService
@@ -11,6 +12,7 @@ const {
 const { protect, authorize } = require('../../../../middleware/auth');
 
 // Public routes
+router.get('/', getAllWorkerServices);
 router.get('/worker/:workerId', getWorkerServices);
 router.get('/service/:serviceId', getServiceWorkers);
 
