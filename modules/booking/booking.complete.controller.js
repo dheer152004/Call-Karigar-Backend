@@ -36,15 +36,15 @@ exports.completeBooking = async (req, res) => {
         await booking.save();
 
         // Send notification to customer
-        await NotificationService.sendNotification({
-            userId: booking.customerId,
-            type: 'booking_completed',
-            title: 'Service Completed',
-            message: 'Your service has been marked as completed by the worker. Please rate your experience!',
-            metadata: {
-                bookingId: booking._id
-            }
-        });
+        // await NotificationService.sendNotification({
+        //     userId: booking.customerId,
+        //     type: 'booking_completed',
+        //     title: 'Service Completed',
+        //     message: 'Your service has been marked as completed by the worker. Please rate your experience!',
+        //     metadata: {
+        //         bookingId: booking._id
+        //     }
+        // });
 
         return res.status(200).json({
             success: true,
