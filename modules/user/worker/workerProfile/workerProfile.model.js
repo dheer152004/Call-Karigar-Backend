@@ -1,10 +1,12 @@
 const mongoose = require('mongoose');
+
 const workerProfileSchema = new mongoose.Schema({
   _id: {
     type: String,
     ref: 'User',
     required: true
   },
+
   phoneNumber: {
     type: String,
     required: true,
@@ -28,8 +30,8 @@ const workerProfileSchema = new mongoose.Schema({
   },
   skills: [{
     type: String,
-    ref: 'ServiceCategory',
-    default: []
+    // ref: 'ServiceCategory',
+    // default: []
   }],
   // address: {
   //   type: String,
@@ -62,7 +64,7 @@ const workerProfileSchema = new mongoose.Schema({
       },
       maxJobsPerDay: {
         type: Number,
-        default: 5
+        default: 10
       }
     }
   },
@@ -97,12 +99,9 @@ const workerProfileSchema = new mongoose.Schema({
 });
 
 // Create the model
-const WorkerProfile = mongoose.model('WorkerProfile', workerProfileSchema);
+workerProfileSchema.pre('save', function (next) {
+  this.lastActive = new Date();
+  next();
+});
 
-// Drop all indexes and recreate only the necessary ones
-WorkerProfile.collection.dropIndexes().catch(() => {});
-
-// Create required indexes
-WorkerProfile.collection.createIndex({ userId: 1 }, { unique: true }).catch(() => {});
-
-module.exports = WorkerProfile;
+module.exports = mongoose.model('WorkerProfile', workerProfileSchema);

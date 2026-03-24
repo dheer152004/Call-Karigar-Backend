@@ -19,15 +19,20 @@ const notificationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    type: {
-        type: String,
-        enum: [
-            'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment',
-            'booking_created', 'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed',
-            'worker_registered', 'customer_registered', 'profile_updated', 'account_verified'
-        ],
-        required: true
-    },
+type: {
+    type: String,
+    enum: [
+        // Support
+        'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment',
+        // Booking
+        'booking_created', 'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed',
+        // Account
+        'worker_registered', 'customer_registered', 'profile_updated', 'account_verified',
+        // Add these — OTP related
+        'otp_sent', 'otp_resent', 'phone_verified', 'email_verified', 'security_alert'
+    ],
+    required: true
+},
     category: {
         type: String,
         enum: ['account', 'booking', 'worker', 'payment', 'system', 'support'],

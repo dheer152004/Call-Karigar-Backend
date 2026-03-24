@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
+    unique: true,
     trim: true,
     lowercase: true,
     validate: {
@@ -27,6 +28,7 @@ const userSchema = new mongoose.Schema({
   phone: {
     type: String,
     required: true,
+    unique: true,
     trim: true,
     validate: {
       validator: function(v) {
@@ -68,29 +70,18 @@ const userSchema = new mongoose.Schema({
 });
 
 // Add compound indexes for quick lookups
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ role: 1, status: 1 }); // For filtering users by role and status
 
 // Password hashing middleware
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  try {
+    if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
 });
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
     return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw error;
-  }
 };
 
 module.exports = mongoose.model('User', userSchema);

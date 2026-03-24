@@ -1,12 +1,41 @@
 const WorkerProfile = require('./workerProfile.model');
 const User = require('../../user.model');
 
+// Helper function to validate worker profile data
+const validateProfileData = (data) => {
+    // For worker profile, basic validation - can be expanded
+    if (data.skills && !Array.isArray(data.skills)) {
+        return {
+            isValid: false,
+            error: 'Skills must be an array'
+        };
+    }
+
+    if (data.preferences) {
+        if (data.preferences.language && !['en', 'hi'].includes(data.preferences.language)) {
+            return {
+                isValid: false,
+                error: 'Invalid language preference. Must be either "en" or "hi"'
+            };
+        }
+        if (typeof data.preferences.notifications !== 'undefined' && 
+            typeof data.preferences.notifications !== 'boolean') {
+            return {
+                isValid: false,
+                error: 'Notifications preference must be a boolean'
+            };
+        }
+    }
+
+    return { isValid: true };
+};
+
 // @desc    Create worker profile
 // @route   POST /api/worker-profile
 // @access  Private (Worker only)
 exports.createWorkerProfile = async (req, res) => {
     try {
-        // Check if user is a worker
+        // Role validation
         if (req.user.role !== 'worker') {
             return res.status(403).json({
                 success: false,
@@ -14,16 +43,26 @@ exports.createWorkerProfile = async (req, res) => {
             });
         }
 
-        // Check if profile already exists
-        const existingProfile = await WorkerProfile.findById(req.user._id);
+        // Check for existing profile — findOne with userId, NOT findById
+        const existingProfile = await WorkerProfile.findOne({ userId: req.user._id });
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
-                message: 'Worker profile already exists'
+                message: 'Worker profile already exists',
+                profile: existingProfile
             });
         }
 
-        // Get user details for username generation
+        // Validate profile data (consistent with customer controller)
+        const validation = validateProfileData(req.body);
+        if (!validation.isValid) {
+            return res.status(400).json({
+                success: false,
+                error: validation.error
+            });
+        }
+
+        // Get user details
         const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({
@@ -32,25 +71,59 @@ exports.createWorkerProfile = async (req, res) => {
             });
         }
 
-        const profile = await WorkerProfile.create({
-            _id: req.user._id, // Use the user's UUID as the profile ID
+        // Destructure known fields from body
+        const {
             photo,
             bio,
             skills,
-            ...req.body
-        });
+            language,
+            notifications,
+            currency,
+            address,
+            ...rest
+        } = req.body;
+
+        // Build profile data explicitly — don't blindly spread req.body
+        const profileData = {
+            userId: req.user._id,
+            phoneNumber: user.phone,
+            email: user.email,
+            photo: photo || '',
+            bio: bio || '',
+            // Ensure skills is always a valid array
+            skills: Array.isArray(skills) && skills.length > 0 ? skills : [],
+            preferences: {
+                language: language || 'en',
+                notifications: notifications !== undefined ? notifications : true,
+                currency: currency || 'INR'
+            },
+            status: 'active',
+            stats: {
+                totalJobsCompleted: 0,
+                totalEarnings: 0,
+                cancelledJobs: 0,
+                averageRating: 0
+            },
+            // Guard against undefined address
+            savedAddresses: address ? [address] : [],
+            joinedAt: new Date(),
+            lastActive: new Date()
+        };
+
+        const profile = await WorkerProfile.create(profileData);
 
         res.status(201).json({
             success: true,
-            data: profile,
-            message: 'Worker profile created successfully'
+            message: 'Worker profile created successfully',
+            data: profile
         });
+
     } catch (error) {
         console.error('Create worker profile error:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating worker profile',
-            error: error.message
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
 };

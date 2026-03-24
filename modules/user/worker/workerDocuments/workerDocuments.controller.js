@@ -3,6 +3,7 @@ const NotificationService = require('../../../../services/notificationService');
 const User = require('../../../user/user.model');
 const emailService = require('../../../../services/emailService');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../../../../utils/cloudinary');
+const WorkerProfile = require('../workerProfile/workerProfile.model');
 
 // Helper function to validate file type
 const validateFileType = (fileType) => {
@@ -21,10 +22,14 @@ exports.uploadDocuments = async (req, res) => {
         const workerId = req.user._id;
         const files = req.files;
 
-        if (!files) {
+        console.log('Upload request received');
+        console.log('Files received:', Object.keys(files || {}));
+        console.log('User ID:', workerId);
+
+        if (!files || Object.keys(files).length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No files uploaded'
+                message: 'No files uploaded. Ensure aadhar, pan, and policeVerification are sent as multipart/form-data'
             });
         }
 
@@ -35,11 +40,13 @@ exports.uploadDocuments = async (req, res) => {
             // Handle required documents (aadhar, pan, policeVerification)
             const requiredDocs = ['aadhar', 'pan', 'policeVerification'];
             for (const docType of requiredDocs) {
-                if (!files[docType]) {
+                if (!files[docType] || files[docType].length === 0) {
                     throw new Error(`${docType.charAt(0).toUpperCase() + docType.slice(1)} document is required`);
                 }
 
                 const file = files[docType][0];
+                console.log(`Uploading ${docType}:`, file.originalname);
+                
                 const result = await uploadToCloudinary(
                     file,
                     `workers/${workerId}/documents/${docType}`
@@ -56,9 +63,11 @@ exports.uploadDocuments = async (req, res) => {
             }
 
             // Handle certifications (optional)
-            if (files.certifications) {
+            if (files.certifications && files.certifications.length > 0) {
                 documentData.certifications = await Promise.all(
                     files.certifications.map(async (cert, index) => {
+                        console.log(`Uploading certification ${index + 1}:`, cert.originalname);
+                        
                         const result = await uploadToCloudinary(
                             cert,
                             `workers/${workerId}/documents/certifications`
@@ -82,6 +91,7 @@ exports.uploadDocuments = async (req, res) => {
 
             if (!workerDocument) {
                 // Create new document
+                console.log('Creating new worker document');
                 workerDocument = await WorkerDocument.create({
                     workerId,
                     ...documentData,
@@ -90,6 +100,7 @@ exports.uploadDocuments = async (req, res) => {
                 });
             } else {
                 // Delete old files from Cloudinary
+                console.log('Updating existing worker document');
                 const requiredDocs = ['aadhar', 'pan', 'policeVerification'];
                 for (const docType of requiredDocs) {
                     if (workerDocument[docType]?.public_id) {
@@ -114,33 +125,16 @@ exports.uploadDocuments = async (req, res) => {
                 await workerDocument.save();
             }
 
-            // Notify admins about new document upload -- for future 
-            // const admins = await User.find({ role: 'admin' });
-            // for (const admin of admins) {
-            //     await NotificationService.createNotification({
-            //         userId: admin._id,
-            //         type: 'document_uploaded',
-            //         category: 'worker',
-            //         title: 'New Worker Documents Uploaded',
-            //         message: `Worker ${req.user.name} has uploaded new documents for verification.`,
-            //         recipientRole: 'admin',
-            //         priority: 'high',
-            //         metadata: {
-            //             workerId,
-            //             workerName: req.user.name,
-            //             documentId: workerDocument._id
-            //         },
-            //         actionUrl: `/admin/worker-documents/${workerDocument._id}`
-            //     });
-            // }
-
+            console.log('Documents uploaded successfully');
             return res.status(201).json({
                 success: true,
+                message: 'Documents uploaded successfully',
                 data: workerDocument
             });
 
         } catch (innerError) {
             // Clean up any uploaded files in case of error
+            console.error('Error during upload:', innerError.message);
             for (const file of uploadedFiles) {
                 try {
                     await deleteFromCloudinary(file.public_id);
@@ -155,7 +149,8 @@ exports.uploadDocuments = async (req, res) => {
         console.error('Upload documents error:', error);
         return res.status(500).json({
             success: false,
-            message: error.message || 'Error uploading documents'
+            message: error.message || 'Error uploading documents',
+            details: error.message
         });
     }
 };
@@ -233,6 +228,17 @@ exports.verifyDocuments = async (req, res) => {
             // Send email notification for verification
             await emailService.sendEmail(worker.email, 'Documents Verified Successfully', 
                 `Dear ${worker.name},\n\nYour documents have been verified successfully. You can now start accepting bookings.`);
+            // Also mark worker profile as verified and active
+            try {
+                const wp = await WorkerProfile.findOne({ _id: workerDocument.workerId }) || await WorkerProfile.findOne({ userId: workerDocument.workerId });
+                if (wp) {
+                    wp.isVerified = true;
+                    wp.status = 'active';
+                    await wp.save();
+                }
+            } catch (profileErr) {
+                console.error('Error updating WorkerProfile after document verification:', profileErr);
+            }
         } else {
             await NotificationService.createNotification({
                 ...notificationData,
@@ -241,7 +247,20 @@ exports.verifyDocuments = async (req, res) => {
                 message: `Your documents status has been updated to: ${status}${remarks ? ` (${remarks})` : ''}`
             });
         }
-
+        
+        // If documents were rejected, ensure worker profile is not verified
+        if (status === 'rejected') {
+            try {
+                const wp = await WorkerProfile.findOne({ _id: workerDocument.workerId }) || await WorkerProfile.findOne({ userId: workerDocument.workerId });
+                if (wp) {
+                    wp.isVerified = false;
+                    wp.status = 'pending';
+                    await wp.save();
+                }
+            } catch (profileErr) {
+                console.error('Error updating WorkerProfile after document rejection:', profileErr);
+            }
+        }
         res.status(200).json({
             success: true,
             data: workerDocument
@@ -340,7 +359,7 @@ exports.updateWorkerDocuments = async (req, res) => {
         }
 
         // Check if user is authorized
-        if (req.user.role !== 'admin' && document.workerId !== req.user._id.toString()) {
+        if (req.user.role !== 'admin' && document.workerId.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to update these documents'
@@ -348,10 +367,16 @@ exports.updateWorkerDocuments = async (req, res) => {
         }
 
         if (req.user.role === 'admin') {
-            // Admin can update status and KYC
             // Admin can only update status
             const { status } = req.body;
             
+            if (!status) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Status is required'
+                });
+            }
+
             // Update document status and KYC flag
             document = await WorkerDocument.findByIdAndUpdate(
                 document._id,
@@ -361,16 +386,9 @@ exports.updateWorkerDocuments = async (req, res) => {
                 },
                 { new: true }
             );
-            
-            // Update document
-            document = await WorkerDocument.findByIdAndUpdate(
-                document._id,
-                updateData,
-                { new: true }
-            );
         } else {
-            // Workers can update document URLs
-            const { aadhar, pan, drivingLicense, certifications } = req.body;
+            // Workers can update document URLs (if needed for reupload)
+            const { aadhar, pan, policeVerification, certifications } = req.body;
             const updateData = {
                 status: 'pending',
                 isKYCComplete: false
@@ -378,7 +396,7 @@ exports.updateWorkerDocuments = async (req, res) => {
             
             if (aadhar) updateData.aadhar = aadhar;
             if (pan) updateData.pan = pan;
-            if (drivingLicense) updateData.drivingLicense = drivingLicense;
+            if (policeVerification) updateData.policeVerification = policeVerification;
             if (certifications) updateData.certifications = certifications;
             
             // Update document

@@ -49,10 +49,13 @@ exports.getMimeType = (url) => {
         case 'pdf':
             return 'application/pdf';
         case 'jpg':
+            return 'image/jpg';
         case 'jpeg':
             return 'image/jpeg';
         case 'png':
             return 'image/png';
+        case 'heic':
+            return 'image/heic';
         default:
             return 'application/octet-stream';
     }

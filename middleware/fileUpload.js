@@ -10,11 +10,11 @@ const upload = multer({
     },
     fileFilter: (req, file, cb) => {
         // Allow only specific file types
-        const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+        const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/heic'];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Invalid file type. Only JPEG, PNG, and PDF files are allowed.'));
+            cb(new Error(`Invalid file type: ${file.mimetype}. Only JPEG, PNG, HEIC, and PDF files are allowed.`));
         }
     }
 }).fields([
@@ -26,36 +26,53 @@ const upload = multer({
 
 // Create wrapper middleware to handle multer errors
 const uploadMiddleware = (req, res, next) => {
+    console.log('=== FileUpload Middleware ===');
+    console.log('Content-Type:', req.headers['content-type']);
+    console.log('Request body:', JSON.stringify(req.body));
+    
     upload(req, res, (err) => {
+        console.log('After multer upload');
+        console.log('req.files:', Object.keys(req.files || {}));
+        console.log('Error:', err);
+
         if (err instanceof multer.MulterError) {
             // A Multer error occurred during upload
+            console.error('Multer error:', err.code);
             if (err.code === 'LIMIT_FILE_SIZE') {
                 return res.status(400).json({
                     success: false,
-                    message: 'File too large. Maximum size is 10MB'
+                    message: 'File too large. Maximum size is 10MB',
+                    error: err.message
                 });
             }
             return res.status(400).json({
                 success: false,
-                message: `Upload error: ${err.message}`
+                message: `Upload error: ${err.message}`,
+                error: err.code
             });
         } else if (err) {
             // An unknown error occurred
+            console.error('Unknown upload error:', err);
             return res.status(400).json({
                 success: false,
-                message: err.message
+                message: err.message || 'File upload error',
+                error: err.toString()
             });
         }
 
         // Check if any files were actually uploaded
         if (!req.files || Object.keys(req.files).length === 0) {
+            console.error('No files received in request');
             return res.status(400).json({
                 success: false,
-                message: 'No files were uploaded. Please ensure you are sending files as multipart/form-data'
+                message: 'No files were uploaded. Please ensure you are sending files as multipart/form-data',
+                details: 'Expected fields: aadhar, pan, policeVerification (required), certifications (optional)',
+                received: req.files ? Object.keys(req.files) : 'none'
             });
         }
 
         // Validation successful, proceed
+        console.log('Files received successfully:', Object.keys(req.files));
         next();
     });
 };

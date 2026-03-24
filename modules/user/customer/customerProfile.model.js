@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 
 const customerProfileSchema = new mongoose.Schema({
-  userId: {
+  _id: {
     type: String,
     ref: 'User',
-    required: true,
-    unique: true  // Each user can have only one customer profile
+    required: true
   },
 
   phoneNumber: {
@@ -109,18 +108,9 @@ const customerProfileSchema = new mongoose.Schema({
 });
 
 // Update lastActive timestamp on every document update
-customerProfileSchema.pre('save', function(next) {
+customerProfileSchema.pre('save', function (next) {
   this.lastActive = new Date();
   next();
 });
 
-// Create a model from the schema
-const CustomerProfile = mongoose.model('CustomerProfile', customerProfileSchema);
-
-// Drop all indexes and recreate only the necessary ones
-CustomerProfile.collection.dropIndexes().catch(() => {});
-
-// Create required indexes
-CustomerProfile.collection.createIndex({ userId: 1 }, { unique: true }).catch(() => {});
-
-module.exports = CustomerProfile;
+module.exports = mongoose.model('CustomerProfile', customerProfileSchema);

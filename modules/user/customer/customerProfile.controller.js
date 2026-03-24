@@ -48,8 +48,6 @@ const validateProfileData = (data) => {
 // @access  Private (Customer only)
 exports.createCustomerProfile = async (req, res) => {
     try {
-        console.log('Creating customer profile:', req.body);
-
         // Role validation
         if (req.user.role !== 'customer') {
             return res.status(403).json({
@@ -58,8 +56,9 @@ exports.createCustomerProfile = async (req, res) => {
             });
         }
 
-        // Check for existing profile
-        const existingProfile = await CustomerProfile.findById(req.user.id);
+        // Check for existing profile — use findOne with userId, NOT findById
+        // because the profile's _id is different from the user's _id
+        const existingProfile = await CustomerProfile.findOne({ userId: req.user.id });
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
@@ -77,7 +76,7 @@ exports.createCustomerProfile = async (req, res) => {
             });
         }
 
-        // Get user details for username generation
+        // Get user details
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({
@@ -86,8 +85,7 @@ exports.createCustomerProfile = async (req, res) => {
             });
         }
 
-
-        // Create basic profile with essential data
+        // Build profile data
         const profileData = {
             userId: req.user.id,
             phoneNumber: user.phone,
@@ -105,7 +103,8 @@ exports.createCustomerProfile = async (req, res) => {
                 cancelledBookings: 0,
                 totalSpent: 0
             },
-            savedAddresses: [req.body.address], // Add the primary address to saved addresses
+            // Guard against undefined address being pushed into the array
+            savedAddresses: req.body.address ? [req.body.address] : [],
             joinedAt: new Date(),
             lastActive: new Date()
         };
@@ -116,12 +115,15 @@ exports.createCustomerProfile = async (req, res) => {
             success: true,
             data: profile
         });
+
     } catch (error) {
+        // Avoid logging full error.message in production as it may leak sensitive info
         console.error('Create customer profile error:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating customer profile',
-            error: error.message
+            // Only expose error detail in non-production environments
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
 };
@@ -270,6 +272,65 @@ exports.deleteCustomerProfile = async (req, res) => {
         });
     }
 };
+// @desc    Upload customer profile photo
+// @route   PUT /api/customer-profile/:id/photo
+// @access  Private (Owner or Admin)
+exports.uploadProfilePhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
 
+        const profile = await CustomerProfile.findById(req.params.id);
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Customer profile not found'
+            });
+        }
+
+        // Check ownership or admin status
+        if (profile.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to update this profile'
+            });
+        }
+
+        const { uploadToCloudinary, deleteFromCloudinary } = require('../../../utils/cloudinary');
+
+        // Delete old photo if exists
+        if (profile.photo && profile.photo !== 'default-profile.jpg') {
+            try {
+                const publicId = profile.photo.split('/').pop().split('.')[0];
+                await deleteFromCloudinary(publicId);
+            } catch (err) {
+                console.error('Error deleting old photo:', err);
+            }
+        }
+
+        // Upload new photo to Cloudinary
+        const result = await uploadToCloudinary(req.file.buffer, 'customer-profiles');
+
+        profile.photo = result.secure_url;
+        await profile.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Profile photo uploaded successfully',
+            data: profile
+        });
+    } catch (error) {
+        console.error('Upload profile photo error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error uploading profile photo',
+            error: error.message
+        });
+    }
+};
 // Note: Address-related operations should be handled by the addressController instead
 // The CustomerProfile only stores a reference to an address
