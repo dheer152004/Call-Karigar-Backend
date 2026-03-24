@@ -23,11 +23,21 @@ type: {
     type: String,
     enum: [
         // Support
-        'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment',
+        'new_support_ticket', 'ticket_updated', 'ticket_resolved', 'ticket_comment', 'support_ticket_response',
         // Booking
         'booking_created', 'booking_confirmed', 'booking_updated', 'booking_cancelled', 'booking_completed',
         // Account
-        'worker_registered', 'customer_registered', 'profile_updated', 'account_verified',
+        'worker_registered', 'customer_registered', 'user_registration', 'profile_updated', 'profile_update', 'account_verified',
+        // Document verification
+        'document_verified', 'document_rejected',
+        // Payment
+        'payment_received', 'payout_processed', 'invoice_generated',
+        // Security
+        'password_changed', 'login_alert', 'email_changed', 'worker_verified',
+        // Reviews
+        'review_received',
+        // Address
+        'address_update',
         // Add these — OTP related
         'otp_sent', 'otp_resent', 'phone_verified', 'email_verified', 'security_alert'
     ],
