@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 
 const customerProfileSchema = new mongoose.Schema({
-    userId: {
+    _id: {
         type: String,      
         ref: 'User',
         required: true,
-        unique: true
     },
     phoneNumber: {
         type: String,
