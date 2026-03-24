@@ -10,15 +10,14 @@ const {
 } = require('./workerDocuments.controller');
 const { protect, authorize } = require('../../../../middleware/auth');
 
-// All routes are protected
-router.use(protect);
-
 // Import file upload middleware
 const upload = require('../../../../middleware/fileUpload');
 
-// Worker routes
+// All routes are protected
+router.use(protect);
+
+// Worker routes (no duplicate protect)
 router.post('/', 
-    protect, 
     authorize('worker'),
     upload,
     uploadDocuments);

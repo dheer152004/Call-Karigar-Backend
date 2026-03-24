@@ -1,18 +1,12 @@
 const mongoose = require('mongoose');
 
 const workerProfileSchema = new mongoose.Schema({
-
-      _id: {
-        type: String,      
+    userId: {
+        type: String,       
         ref: 'User',
         required: true,
-        // unique: true
+        unique: true
     },
-    // userId: {
-    //     type: String,       
-    //     ref: 'User',
-    //     required: true,
-    // },
     phoneNumber: {
         type: String,
         required: true,
@@ -34,9 +28,6 @@ const workerProfileSchema = new mongoose.Schema({
         default: '',
         maxLength: 1000
     },
-    // ✅ Removed invalid ref on String — pick one option:
-    // Option A (plain strings): skills: [{ type: String }]
-    // Option B (refs to ServiceCategory): skills: [{ type: String, ref: 'ServiceCategory' }] only if ServiceCategory._id is also UUID
     skills: [{ type: String }],
     status: {
         type: String,
@@ -72,7 +63,6 @@ const workerProfileSchema = new mongoose.Schema({
 
 workerProfileSchema.pre('save', function(next) {
     this.lastActive = new Date();
-    // next();
 });
 
 module.exports = mongoose.model('WorkerProfile', workerProfileSchema);

@@ -5,9 +5,11 @@ const {
     getAllCustomerProfiles,
     getCustomerProfile,
     updateCustomerProfile,
-    deleteCustomerProfile
+    deleteCustomerProfile,
+    uploadProfilePhoto
 } = require('./customerProfile.controller');
 const { protect, authorize } = require('../../../middleware/auth');
+const uploadMiddleware = require('../../../middleware/fileUpload');
 
 // Profile completion route
 router.get('/update-profile', protect, authorize('customer'), (req, res) => {
@@ -23,6 +25,7 @@ router.get('/', authorize('admin'), getAllCustomerProfiles);
 // Mixed access routes (owner or admin)
 router.get('/:id', getCustomerProfile);
 router.put('/:id', updateCustomerProfile);
+router.put('/:id/photo', uploadMiddleware, uploadProfilePhoto);
 router.delete('/:id', deleteCustomerProfile);
 
 module.exports = router;

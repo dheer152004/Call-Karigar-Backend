@@ -1,11 +1,11 @@
 const mongoose = require('mongoose');
 
 const customerProfileSchema = new mongoose.Schema({
-    _id: {
+    userId: {
         type: String,      
         ref: 'User',
         required: true,
-        // unique: true
+        unique: true
     },
     phoneNumber: {
         type: String,
@@ -45,10 +45,9 @@ const customerProfileSchema = new mongoose.Schema({
         cancelledBookings: { type: Number, default: 0 },
         totalSpent: { type: Number, default: 0 }
     },
-    // ✅ Merged address + savedAddresses into one array
     savedAddresses: [{
         type: String,
-        ref: 'Address'      // String — assuming Address._id is also UUID
+        ref: 'Address'    
     }],
     savedWorkers: [{
         type: String,
@@ -66,7 +65,7 @@ const customerProfileSchema = new mongoose.Schema({
 
 customerProfileSchema.pre('save', function(next) {
     this.lastActive = new Date();
-    // next();
+    next();
 });
 
 module.exports = mongoose.model('CustomerProfile', customerProfileSchema);

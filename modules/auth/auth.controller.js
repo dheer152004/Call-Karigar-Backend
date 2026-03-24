@@ -7,7 +7,7 @@ const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
 
 
-// Fixed — returns profile, uses _id pattern consistently
+// returns profile, uses _id pattern consistently
 const createBasicProfile = async (user) => {
     let profile = null;
     let message = '';
@@ -57,7 +57,7 @@ const createBasicProfile = async (user) => {
 
         case 'worker':
             profile = await WorkerProfile.create({
-                _id: user._id,      // ✅ only _id, no userId
+                _id: user._id, 
                 phoneNumber: user.phone,
                 email: user.email,
                 photo: 'default-worker.jpg',
@@ -140,7 +140,7 @@ exports.registerUser = async (req, res) => {
             });
         }
 
-        // ✅ Removed manual bcrypt — model pre-save hook handles hashing
+        // Removed manual bcrypt — model pre-save hook handles hashing
         const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
@@ -193,7 +193,7 @@ exports.registerUser = async (req, res) => {
                     phone: user.phone,
                     role: user.role
                 },
-                profile,    // ✅ now correctly returned for all roles
+                profile,    // now correctly returned for all roles
                 token,
                 redirectTo
             }
@@ -202,7 +202,7 @@ exports.registerUser = async (req, res) => {
     } catch (error) {
         console.error('Registration error:', error);
 
-        // ✅ Handle Mongoose validation errors
+        // Handle Mongoose validation errors
         if (error.name === 'ValidationError') {
             const messages = Object.values(error.errors).map(e => e.message);
             return res.status(400).json({
@@ -212,7 +212,7 @@ exports.registerUser = async (req, res) => {
             });
         }
 
-        // ✅ Handle duplicate key errors
+        // Handle duplicate key errors
         if (error.code === 11000) {
             const field = Object.keys(error.keyPattern)[0];
             return res.status(400).json({
@@ -294,7 +294,7 @@ exports.loginUser = async (req, res) => {
             });
         }
 
-        // ✅ Fetch profile using findById — _id = user._id
+        // Fetch profile using findById — _id = user._id
         const ProfileModel = user.role === 'admin' ? AdminProfile :
                              user.role === 'customer' ? CustomerProfile :
                              WorkerProfile;
@@ -326,7 +326,7 @@ exports.loginUser = async (req, res) => {
             });
         }
 
-        // ✅ Update lastLogin without triggering pre-save middleware
+        // Update lastLogin without triggering pre-save middleware
         await User.updateOne(
             { _id: user._id },
             { lastLogin: new Date() }
@@ -415,10 +415,10 @@ exports.loginUser = async (req, res) => {
 exports.logoutUser = async (req, res) => {
     try {
         if (req.user && req.user.id) {
-            // ✅ updateOne avoids triggering pre-save middleware
+            // updateOne avoids triggering pre-save middleware
             await User.updateOne(
                 { _id: req.user.id },
-                { lastLogout: new Date() }   // ✅ add lastLogout to User schema too
+                { lastLogout: new Date() }   // add lastLogout to User schema too
             );
         }
 
