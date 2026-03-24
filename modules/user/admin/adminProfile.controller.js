@@ -1,4 +1,4 @@
-const AdminProfile = require('./adminProfile.model');
+const AdminProfile = require('./admin.model');
 const User = require('../user.model');
 const bcrypt = require('bcryptjs');
 

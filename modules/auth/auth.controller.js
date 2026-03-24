@@ -1,13 +1,13 @@
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const User = require('../user/user.model');
 const CustomerProfile = require('../user/customer/customerProfile.model');
 const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model');
-const AdminProfile = require('../user/admin/adminProfile.model');
+const AdminProfile = require('../user/admin/admin.model');
 const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
 
 
+// Fixed — returns profile, uses _id pattern consistently
 const createBasicProfile = async (user) => {
     let profile = null;
     let message = '';
@@ -15,24 +15,24 @@ const createBasicProfile = async (user) => {
 
     switch (user.role) {
         case 'admin':
-            const adminProfile = await AdminProfile.create({
-                userId: user._id,
-                createdAt: new Date(),
-                updatedAt: new Date()
+            profile = await AdminProfile.create({
+                _id: user._id,
+                permissions: [
+                    'manage_users',
+                    'manage_services',
+                    'manage_bookings',
+                    'manage_payments',
+                    'manage_reports',
+                    'manage_settings'
+                ]
             });
-
-            profile = {
-                _id: adminProfile._id,
-                userId: user._id
-            };
-            
-            redirectTo = '/admin/update-profile';
             message = 'Admin registration successful. Please complete your profile.';
+            redirectTo = '/admin/update-profile';
             break;
+
         case 'customer':
-            // Create minimal customer profile
-            const customerProfile = await CustomerProfile.create({
-                userId: user._id,
+            profile = await CustomerProfile.create({
+                _id: user._id,
                 status: 'new',
                 phoneNumber: user.phone,
                 email: user.email,
@@ -51,92 +51,51 @@ const createBasicProfile = async (user) => {
                     totalSpent: 0
                 }
             });
+            message = 'Customer registration successful. Welcome to Call Kaarigar!';
+            redirectTo = '/customer/update-profile';
+            break;
+
         case 'worker':
-            // Create worker profile
-            const workerProfile = await WorkerProfile.create({
-                _id: user._id,
+            profile = await WorkerProfile.create({
+                _id: user._id,      // ✅ only _id, no userId
                 phoneNumber: user.phone,
                 email: user.email,
                 photo: 'default-worker.jpg',
-                bio: 'Hello, I am a new service provider.',
+                bio: '',
                 skills: [],
                 status: 'pending',
                 isVerified: false,
-                availability: {
-                    isAvailable: false,
-                    schedule: []
-                },
                 preferences: {
                     language: 'en',
                     notifications: true,
-                    maxJobRadius: 10,
-                    autoAccept: false
+                    availability: {
+                        autoAccept: false,
+                        maxJobsPerDay: 5
+                    }
                 },
                 stats: {
                     totalJobs: 0,
                     completedJobs: 0,
                     cancelledJobs: 0,
-                    totalEarnings: 0,
-                    rating: 0,
-                    ratingCount: 0
+                    totalEarnings: 0
                 }
             });
-            
-            redirectTo = '/worker/update-profile';
             message = 'Worker registration successful. Please complete your profile and verify your documents.';
+            redirectTo = '/worker/update-profile';
             break;
+
+        default:
+            throw new Error(`Invalid role: ${user.role}`);
     }
 
-    return {
-        // profile: { _id: profile.insertedId, userId: user._id },
-        message,
-        redirectTo
-    };
+    return { profile, message, redirectTo };
 };
 
-// Helper function to create a new address
-const createAddress = async (user, addressData) => {
-    if (!addressData) return null;
-
-    const address = new Address({
-        userId: user._id,
-        label: addressData.label || 'Home',
-        addressLine: addressData.addressLine,
-        city: addressData.city,
-        state: addressData.state,
-        postalCode: addressData.postalCode,
-        country: addressData.country || 'India',
-        isPrimary: true
-    });
-    const savedAddress = await address.save();
-    return savedAddress._id;
-};
-
-// Helper function to get base profile data
-const getBaseProfileData = (user, addressId = null) => {
-    return {
-        userId: user._id.toString(),
-        phoneNumber: user.phone,
-        email: user.email,
-        address: addressId,
-        preferences: { 
-            language: 'en', 
-            notifications: true 
-        },
-        savedAddresses: addressId ? [addressId] : []
-    };
-};
 
 // Register a new user
 exports.registerUser = async (req, res) => {
     try {
-        const { 
-            name, 
-            email, 
-            phone, 
-            password, 
-            role
-        } = req.body;
+        const { name, email, phone, password, role } = req.body;
 
         // Validate required fields
         if (!name || !email || !phone || !password) {
@@ -159,7 +118,7 @@ exports.registerUser = async (req, res) => {
         const normalizedEmail = email.toLowerCase().trim();
         const normalizedPhone = phone.replace(/\D/g, '');
 
-        // Check for existing user with case-insensitive email or exact phone match
+        // Check for existing user
         const existingUser = await User.findOne({
             $or: [
                 { email: normalizedEmail },
@@ -168,51 +127,32 @@ exports.registerUser = async (req, res) => {
         });
 
         if (existingUser) {
-            const isDuplicateEmail = existingUser.email.toLowerCase() === normalizedEmail.toLowerCase();
+            const isDuplicateEmail = existingUser.email === normalizedEmail;
             const isDuplicatePhone = existingUser.phone === normalizedPhone;
 
             return res.status(400).json({
                 success: false,
-                message: isDuplicateEmail && isDuplicatePhone ? 
+                message: isDuplicateEmail && isDuplicatePhone ?
                     'Email and phone number already registered' :
-                    isDuplicateEmail ? 
-                        'Email already registered' : 
+                    isDuplicateEmail ?
+                        'Email already registered' :
                         'Phone number already registered'
             });
         }
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        // const hashedPassword = await bcrypt.hash(password, salt);
-        const hashedPassword = password;
-        console.log('Creating new user:', {
-            name: name.trim(),
-            email: normalizedEmail,
-            phone: normalizedPhone,
-            role: role || 'customer'
-        });
-
-        // Create user (password will be hashed by the model's pre-save middleware)
+        // ✅ Removed manual bcrypt — model pre-save hook handles hashing
         const user = await User.create({
             name: name.trim(),
             email: normalizedEmail,
             phone: normalizedPhone,
-            password: password,
+            password: password,     // pre-save middleware hashes this
             role: role || 'customer',
             status: 'active',
             isPhoneVerified: false,
-            isEmailVerified: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
-        console.log('User created successfully:', {
-            _id: user._id,
-            email: user.email,
-            phone: user.phone,
-            role: user.role
+            isEmailVerified: false
         });
 
-        // Create basic profile
+        // Create role-based profile
         const { profile, message, redirectTo } = await createBasicProfile(user);
 
         // Generate JWT token
@@ -230,22 +170,21 @@ exports.registerUser = async (req, res) => {
                     type: user.role === 'worker' ? 'worker_registered' : 'customer_registered',
                     category: 'account',
                     title: 'Welcome to Call Kaarigar!',
-                    message: user.role === 'worker' 
+                    message: user.role === 'worker'
                         ? 'Your worker account has been created. Please complete your profile and upload required documents for verification.'
                         : 'Welcome to Call Kaarigar! Your account has been created successfully.',
                     recipientRole: user.role,
                     priority: 'high'
                 });
             } catch (notifError) {
-                console.error('Error sending welcome notification:', notifError);
                 // Don't fail registration if notification fails
+                console.error('Error sending welcome notification:', notifError);
             }
         }
 
-        // Send success response
         res.status(201).json({
             success: true,
-            message: message,
+            message,
             data: {
                 user: {
                     id: user._id,
@@ -254,15 +193,26 @@ exports.registerUser = async (req, res) => {
                     phone: user.phone,
                     role: user.role
                 },
-                profile,
+                profile,    // ✅ now correctly returned for all roles
                 token,
                 redirectTo
             }
         });
+
     } catch (error) {
         console.error('Registration error:', error);
-        
-        // Handle MongoDB duplicate key error
+
+        // ✅ Handle Mongoose validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return res.status(400).json({
+                success: false,
+                message: messages[0],
+                errors: messages
+            });
+        }
+
+        // ✅ Handle duplicate key errors
         if (error.code === 11000) {
             const field = Object.keys(error.keyPattern)[0];
             return res.status(400).json({
@@ -270,77 +220,64 @@ exports.registerUser = async (req, res) => {
                 message: `${field} already registered`
             });
         }
-        
+
         res.status(500).json({
             success: false,
-            message: 'Server error during registration'
+            message: 'Server error during registration',
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
 };
 
+
 // Login user with email/phone and password
 exports.loginUser = async (req, res) => {
     try {
-        console.log('Login attempt:', { ...req.body, password: '***' });
         const { identifier, password: rawPassword } = req.body;
-        
-        // Clean and normalize the password
         const password = rawPassword ? rawPassword.trim() : '';
-        
+
         // Validate input
         if (!identifier || !password) {
-            console.log('Missing credentials:', { identifier: !!identifier, password: !!password });
             return res.status(400).json({
                 success: false,
                 message: 'Please provide email/phone and password'
             });
         }
 
-        // Normalize the identifier (could be email or phone)
         const normalizedIdentifier = identifier.toLowerCase().trim();
-        console.log('Normalized identifier:', normalizedIdentifier);
-        
-        // Determine if identifier is an email or phone number
+
+        // Determine if identifier is email or phone
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier);
         const normalizedPhone = normalizedIdentifier.replace(/\D/g, '');
         const isPhone = /^\d{10}$/.test(normalizedPhone);
-        
-        console.log('Identifier type:', { isEmail, isPhone });
-        
-        // Find user by email or phone
-        const query = {
-            $or: [
-                ...(isEmail ? [{ email: normalizedIdentifier.toLowerCase() }] : []),
-                ...(isPhone ? [{ phone: normalizedPhone }] : [])
-            ]
-        };
-        console.log('Search query:', JSON.stringify(query));
-        
-        // Make sure to select password field and use case-insensitive email comparison
-        const user = await User.findOne(query);
-        console.log('User found:', user ? { 
-            _id: user._id, 
-            email: user.email, 
-            phone: user.phone,
-            role: user.role
-        } : 'No user found');
 
-        if (!user) {
-            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier);
-            return res.status(401).json({
+        if (!isEmail && !isPhone) {
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid credentials',
-                details: {
-                    type: isEmail ? 'email' : 'phone',
-                    exists: false,
-                    hint: isEmail ? 
-                        'No account found with this email address. Please register first.' : 
-                        'No account found with this phone number. Please register first.'
-                }
+                message: 'Please provide a valid email or 10-digit phone number'
             });
         }
 
-        // Check if user is active
+        // Build query
+        const query = {
+            $or: [
+                ...(isEmail ? [{ email: normalizedIdentifier }] : []),
+                ...(isPhone ? [{ phone: normalizedPhone }] : [])
+            ]
+        };
+
+        const user = await User.findOne(query);
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: isEmail ?
+                    'No account found with this email address' :
+                    'No account found with this phone number'
+            });
+        }
+
+        // Check if user is blocked
         if (user.status === 'blocked') {
             return res.status(403).json({
                 success: false,
@@ -348,72 +285,33 @@ exports.loginUser = async (req, res) => {
             });
         }
 
-        // Check password
-        console.log('Comparing password for user:', user._id);
-        try {
-            console.log('Login - Attempting password comparison');
-            
-            // Use the model's comparePassword method
-            const isMatch = await user.comparePassword(password);
-            console.log('Login - Password match result:', isMatch);
-            
-            if (!isMatch) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Invalid credentials',
-                    details: {
-                        type: 'password',
-                        exists: true,
-                        hint: 'The password you entered is incorrect. Please try again.'
-                    }
-                });
-            }
-        } catch (error) {
-            console.error('Password comparison error:', error);
-            return res.status(500).json({
+        // Verify password
+        const isMatch = await user.comparePassword(password);
+        if (!isMatch) {
+            return res.status(401).json({
                 success: false,
-                message: 'Error during authentication',
-                details: {
-                    type: 'server_error',
-                    hint: 'Please try again later.'
-                }
+                message: 'Incorrect password. Please try again.'
             });
         }
 
-        // Get appropriate profile model based on role
-        let profile = null;
-        let redirectTo = null;
-        
-        // Fetch user's addresses
-        const addresses = await Address.find({ userId: user._id })
-            .sort({ isPrimary: -1, createdAt: -1 });
-        const Profile = user.role === 'admin' ? AdminProfile : 
-                       user.role === 'customer' ? CustomerProfile : 
-                       WorkerProfile;
-        console.log('Looking for profile with role:', user.role);
-        profile = await Profile.findOne({ userId: user._id });
-        console.log('Profile found:', profile ? { 
-            _id: profile._id,
-            status: profile.status 
-        } : 'No profile found');
+        // ✅ Fetch profile using findById — _id = user._id
+        const ProfileModel = user.role === 'admin' ? AdminProfile :
+                             user.role === 'customer' ? CustomerProfile :
+                             WorkerProfile;
 
-        // Check if profile exists
+        const profile = await ProfileModel.findById(user._id);
+
+        // Profile missing — return token so they can complete it
         if (!profile) {
-            // Generate token for profile completion
             const token = jwt.sign(
                 { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRE || '24h' }
+                { expiresIn: '24h' }
             );
 
             return res.status(200).json({
                 success: true,
                 message: 'Please complete your profile',
-                details: {
-                    type: 'profile',
-                    exists: false,
-                    hint: `Your ${user.role} profile needs to be completed before you can proceed.`
-                },
                 data: {
                     token,
                     user: {
@@ -423,43 +321,44 @@ exports.loginUser = async (req, res) => {
                         phone: user.phone,
                         role: user.role
                     },
-                    redirectTo: user.role === 'worker' ? '/worker/update-profile' : 
-                               user.role === 'customer' ? '/customer/update-profile' : 
-                               '/admin/update-profile'
+                    redirectTo: `/${user.role}/update-profile`
                 }
             });
         }
 
-        // Update last login time
-        user.lastLogin = new Date();
-        await user.save();
+        // ✅ Update lastLogin without triggering pre-save middleware
+        await User.updateOne(
+            { _id: user._id },
+            { lastLogin: new Date() }
+        );
 
-        // Generate JWT token
+        // Generate token
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRE || '7d' }
         );
 
-        // Send response with profile-specific redirect
-        // Prepare response based on user role
-        // Prepare profile data
-        const profileData = profile ? {
+        // Fetch addresses
+        const addresses = await Address.find({ userId: user._id })
+            .sort({ isPrimary: -1, createdAt: -1 });
+
+        // Build profile data
+        const profileData = {
             photo: profile.photo || 'default-profile.jpg',
             status: profile.status,
             bio: profile.bio,
             preferences: profile.preferences,
             stats: profile.stats,
-            ...(profile.address && { address: profile.address }),
             ...(user.role === 'worker' && {
                 skills: profile.skills,
                 isVerified: profile.isVerified,
                 ratingAverage: profile.ratingAverage,
                 ratingCount: profile.ratingCount
             })
-        } : null;
+        };
 
-        const responseData = {
+        res.status(200).json({
             success: true,
             message: 'Login successful',
             data: {
@@ -471,18 +370,17 @@ exports.loginUser = async (req, res) => {
                     phone: user.phone,
                     role: user.role,
                     status: user.status,
-                    lastLogin: user.lastLogin,
-                    createdAt: user.createdAt,
-                    isEmailVerified: user.isEmailVerified || false,
-                    isPhoneVerified: user.isPhoneVerified || false,
+                    isEmailVerified: user.isEmailVerified,
+                    isPhoneVerified: user.isPhoneVerified,
+                    lastLogin: new Date()
                 },
                 profile: profileData,
-                addresses: addresses,
+                addresses,
                 navigation: {
-                    redirectTo: user.role === 'admin' ? 
-                        '/admin/dashboard' : 
-                        user.role === 'worker' ? 
-                            '/worker/update-profile' : 
+                    redirectTo: user.role === 'admin' ?
+                        '/admin/dashboard' :
+                        user.role === 'worker' ?
+                            '/worker/update-profile' :
                             '/customer/update-profile',
                     allowedRoutes: [
                         `/${user.role}/dashboard`,
@@ -494,72 +392,50 @@ exports.loginUser = async (req, res) => {
                     ]
                 },
                 settings: {
-                    theme: profile?.preferences?.theme || 'light',
-                    language: profile?.preferences?.language || 'en',
-                    notifications: profile?.preferences?.notifications ?? true,
-                    currency: profile?.preferences?.currency || 'INR'
+                    theme: profile.preferences?.theme || 'light',
+                    language: profile.preferences?.language || 'en',
+                    notifications: profile.preferences?.notifications ?? true,
+                    currency: profile.preferences?.currency || 'INR'
                 }
             }
-        };
-
-        res.status(200).json(responseData);
+        });
 
     } catch (error) {
-        console.error('Login error details:', {
-            message: error.message,
-            stack: error.stack,
-            path: error.path,
-            name: error.name,
-            code: error.code
-        });
-        
-        // Send a more specific error message in development
-        const isDevelopment = process.env.NODE_ENV !== 'production';
+        console.error('Login error:', error);
         res.status(500).json({
             success: false,
-            message: isDevelopment ? `Login error: ${error.message}` : 'Internal server error during login',
-            ...(isDevelopment && { details: {
-                path: error.path,
-                name: error.name,
-                code: error.code
-            }})
+            message: 'Internal server error during login',
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
 };
 
-// Logout user (client-side token removal)
+
+// Logout user
 exports.logoutUser = async (req, res) => {
     try {
-        // Update last logout time if user is authenticated
         if (req.user && req.user.id) {
-            const user = await User.findById(req.user.id);
-            if (user) {
-                user.lastLogout = new Date();
-                await user.save();
-                
-                // Log the logout for security audit
-                console.log('User logged out:', {
-                    userId: user._id,
-                    email: user.email,
-                    role: user.role,
-                    timestamp: user.lastLogout
-                });
-            }
+            // ✅ updateOne avoids triggering pre-save middleware
+            await User.updateOne(
+                { _id: req.user.id },
+                { lastLogout: new Date() }   // ✅ add lastLogout to User schema too
+            );
         }
 
-        res.status(200).json({ 
+        res.status(200).json({
             success: true,
             message: 'Logged out successfully',
-            data: { 
+            data: {
                 redirectTo: '/auth/login'
             }
         });
+
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             message: 'Server error during logout',
-            ...(process.env.NODE_ENV === 'development' && { error: error.message })
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
 };

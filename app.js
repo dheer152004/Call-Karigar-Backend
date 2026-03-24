@@ -102,31 +102,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' })); // Limit JSON body size
 app.use(express.urlencoded({ extended: true }));
 
-
-// Serve uploaded files
-// app.use('/uploads', express.static(path.join(__dirname, 'tmp/uploads')));
-
-// // Serve HTML files for different roles
-// app.get('/login', (req, res) => {
-//   res.sendFile(path.join(publicPath, 'login.html'));
-// });
-
-// app.get('/register', (req, res) => {
-//   res.sendFile(path.join(publicPath, 'register.html'));
-// });
-
-// app.get('/admin/dashboard', (req, res) => {
-//   res.sendFile(path.join(publicPath, 'admin/dashboard.html'));
-// });
-
-// app.get('/customer/dashboard', (req, res) => {
-//   res.sendFile(path.join(publicPath, 'customer/dashboard.html'));
-// });
-
-// app.get('/worker/dashboard', (req, res) => {
-//   res.sendFile(path.join(publicPath, 'worker/dashboard.html'));
-// });
-
 // Import routes from modules
 const authRoutes = require('./modules/auth/auth.routes');
 const userRoutes = require('./modules/user/user.routes');
@@ -148,11 +123,6 @@ const bookingRoutes = require('./modules/booking/booking.routes');
 const paymentRoutes = require('./modules/payment/payment.routes');
 const reviewRoutes = require('./modules/review/review.routes');
 const supportTicketRoutes = require('./modules/supportTicket/supportTicket.routes');
-
-
-const locationRoutes = require('./modules/location/location.routes');
-app.use('/api/location', locationRoutes);
-
 
 // Register independent service routes
 app.use('/api', workerIndependentServiceRoutes);
