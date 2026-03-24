@@ -67,7 +67,7 @@ router.use(authorize('admin'));
 const checkProfileStatus = async (req, res, next) => {
     try {
         const AdminProfile = require('./admin.model');
-        const profile = await AdminProfile.findOne({ userId: req.user.id });
+        const profile = await AdminProfile.findById(req.user.id);
         
         if (profile && req.path === '/update-profile') {
             return res.redirect('/admin/dashboard');
@@ -114,7 +114,7 @@ router.post('/create-profile', upload.single('photo'), handleMulterError, async 
         const AdminProfile = require('./admin.model');
         
         // Check if profile already exists
-        let profile = await AdminProfile.findOne({ userId: req.user.id });
+        let profile = await AdminProfile.findById(req.user.id);
         
         if (profile) {
             return res.status(400).json({

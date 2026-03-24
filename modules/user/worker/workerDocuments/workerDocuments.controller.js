@@ -230,7 +230,7 @@ exports.verifyDocuments = async (req, res) => {
                 `Dear ${worker.name},\n\nYour documents have been verified successfully. You can now start accepting bookings.`);
             // Also mark worker profile as verified and active
             try {
-                const wp = await WorkerProfile.findOne({ _id: workerDocument.workerId }) || await WorkerProfile.findOne({ userId: workerDocument.workerId });
+                const wp = await WorkerProfile.findById(workerDocument.workerId);
                 if (wp) {
                     wp.isVerified = true;
                     wp.status = 'active';
@@ -251,7 +251,7 @@ exports.verifyDocuments = async (req, res) => {
         // If documents were rejected, ensure worker profile is not verified
         if (status === 'rejected') {
             try {
-                const wp = await WorkerProfile.findOne({ _id: workerDocument.workerId }) || await WorkerProfile.findOne({ userId: workerDocument.workerId });
+                const wp = await WorkerProfile.findById(workerDocument.workerId);
                 if (wp) {
                     wp.isVerified = false;
                     wp.status = 'pending';

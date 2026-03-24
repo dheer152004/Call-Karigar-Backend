@@ -12,7 +12,7 @@ exports.toggleWorkerVerification = async (req, res) => {
         const { status, message } = req.body;
 
         // Find worker profile
-        const workerProfile = await WorkerProfile.findOne({ userId: workerId });
+        const workerProfile = await WorkerProfile.findById(workerId);
         
         if (!workerProfile) {
             return res.status(404).json({

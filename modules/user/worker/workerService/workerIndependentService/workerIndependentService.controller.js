@@ -66,9 +66,9 @@ exports.getWorkerSpecificIndependentServices = async (req, res) => {
         const { workerId } = req.params;
 
         // Get worker details first
-        const workerProfile = await WorkerProfile.findOne({ userId: workerId })
-            .populate('userId', 'name phone email photo')
-            .select('userId');
+        const workerProfile = await WorkerProfile.findById(workerId)
+            .populate('_id', 'name phone email photo')
+            .select('_id');
 
         if (!workerProfile) {
             return res.status(404).json({

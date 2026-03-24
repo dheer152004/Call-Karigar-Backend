@@ -20,7 +20,7 @@ exports.createAdminProfile = async (userId, name) => {
 // Get admin profile
 exports.getAdminProfile = async (userId) => {
     try {
-        return await AdminProfile.findOne({ userId });
+        return await AdminProfile.findById(userId);
     } catch (error) {
         console.error('Error getting admin profile:', error);
         throw error;

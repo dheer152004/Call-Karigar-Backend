@@ -76,7 +76,7 @@ exports.createReview = async (req, res) => {
         });
 
         // Update worker's rating average
-        const workerProfile = await WorkerProfile.findOne({ userId: booking.workerId });
+        const workerProfile = await WorkerProfile.findById(booking.workerId);
         if (workerProfile) {
             const reviews = await Review.find({ workerId: booking.workerId });
             const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
@@ -197,7 +197,7 @@ exports.updateReview = async (req, res) => {
             .populate('workerServiceId', 'serviceName price');
 
         // Update worker's rating average
-        const workerProfile = await WorkerProfile.findOne({ userId: review.workerId });
+        const workerProfile = await WorkerProfile.findById(review.workerId);
         if (workerProfile) {
             const reviews = await Review.find({ workerId: review.workerId });
             const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
@@ -245,7 +245,7 @@ exports.deleteReview = async (req, res) => {
         await review.deleteOne();
 
         // Update worker's rating average
-        const workerProfile = await WorkerProfile.findOne({ userId: review.workerId });
+        const workerProfile = await WorkerProfile.findById(review.workerId);
         if (workerProfile) {
             const reviews = await Review.find({ workerId: review.workerId });
             if (reviews.length > 0) {

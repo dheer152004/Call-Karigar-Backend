@@ -43,13 +43,13 @@ exports.createWorkerProfile = async (req, res) => {
             });
         }
 
-        // Check for existing profile — findOne with userId, NOT findById
-        const existingProfile = await WorkerProfile.findOne({ userId: req.user._id });
+        // Check for existing profile by _id (schema uses _id to store user id)
+        const existingProfile = await WorkerProfile.findById(req.user._id);
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
                 message: 'Worker profile already exists',
-                profile: existingProfile
+                data: existingProfile
             });
         }
 
@@ -85,7 +85,7 @@ exports.createWorkerProfile = async (req, res) => {
 
         // Build profile data explicitly — don't blindly spread req.body
         const profileData = {
-            userId: req.user._id,
+            _id: req.user._id,
             phoneNumber: user.phone,
             email: user.email,
             photo: photo || '',

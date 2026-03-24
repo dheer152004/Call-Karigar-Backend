@@ -56,9 +56,8 @@ exports.createCustomerProfile = async (req, res) => {
             });
         }
 
-        // Check for existing profile — use findOne with userId, NOT findById
-        // because the profile's _id is different from the user's _id
-        const existingProfile = await CustomerProfile.findOne({ userId: req.user.id });
+        // Check for existing profile — use findById since _id is the user reference
+        const existingProfile = await CustomerProfile.findById(req.user.id);
         if (existingProfile) {
             return res.status(400).json({
                 success: false,
@@ -87,7 +86,7 @@ exports.createCustomerProfile = async (req, res) => {
 
         // Build profile data
         const profileData = {
-            userId: req.user.id,
+            _id: req.user.id,
             phoneNumber: user.phone,
             email: user.email,
             preferences: {

@@ -207,7 +207,7 @@ exports.updateWorkerService = async (req, res) => {
         }
 
         // Check ownership
-        const workerProfile = await WorkerProfile.findOne({ userId: req.user._id });
+        const workerProfile = await WorkerProfile.findById(req.user._id);
         if (workerService.workerId.toString() !== workerProfile._id.toString()) {
             return res.status(403).json({
                 success: false,
@@ -260,7 +260,7 @@ exports.toggleServiceStatus = async (req, res) => {
         }
 
         // Check ownership
-        const workerProfile = await WorkerProfile.findOne({ userId: req.user._id });
+        const workerProfile = await WorkerProfile.findById(req.user._id);
         if (workerService.workerId.toString() !== workerProfile._id.toString()) {
             return res.status(403).json({
                 success: false,
@@ -304,7 +304,7 @@ exports.deleteWorkerService = async (req, res) => {
         }
 
         // Check ownership
-        const workerProfile = await WorkerProfile.findOne({ userId: req.user._id });
+        const workerProfile = await WorkerProfile.findById(req.user._id);
         if (workerService.workerId.toString() !== workerProfile._id.toString()) {
             return res.status(403).json({
                 success: false,
