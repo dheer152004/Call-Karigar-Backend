@@ -5,5 +5,5 @@ services:
     plan: free
     branch: master
     buildCommand: npm install
-    startCommand: npm run dev
+    startCommand: npm start
     healthCheckPath: /

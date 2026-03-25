@@ -160,16 +160,20 @@ exports.uploadDocuments = async (req, res) => {
 // @access  Private (Admin only)
 exports.verifyDocuments = async (req, res) => {
     try {
+        console.log('Starting document verification for ID:', req.params.id);
         const { status, remarks } = req.body;
         const documentId = req.params.id;
 
+        console.log('Finding worker document...');
         const workerDocument = await WorkerDocument.findById(documentId);
         if (!workerDocument) {
+            console.log('Worker document not found');
             return res.status(404).json({
                 success: false,
                 message: 'Documents not found'
             });
         }
+        console.log('Worker document found:', workerDocument._id);
 
         // Update document status
         workerDocument.status = status;
@@ -187,10 +191,14 @@ exports.verifyDocuments = async (req, res) => {
             workerDocument.isKYCComplete = true;
         }
 
+        console.log('Saving worker document...');
         await workerDocument.save();
+        console.log('Worker document saved successfully');
 
         // Get worker details for notification
+        console.log('Finding worker user...');
         const worker = await User.findById(workerDocument.workerId);
+        console.log('Worker user found:', worker ? worker._id : 'null');
 
         // Send notification to worker about document status
         let notificationData = {
@@ -206,65 +214,94 @@ exports.verifyDocuments = async (req, res) => {
             actionUrl: `/worker/documents/${workerDocument._id}`
         };
 
+        console.log('Sending notifications...');
         if (status === 'rejected') {
-            await NotificationService.createNotification({
-                ...notificationData,
-                type: 'document_rejected',
-                title: 'Documents Verification Failed',
-                message: `Your documents have been rejected. Reason: ${remarks}`
-            });
+            try {
+                await NotificationService.createNotification({
+                    ...notificationData,
+                    type: 'document_rejected',
+                    title: 'Documents Verification Failed',
+                    message: `Your documents have been rejected. Reason: ${remarks}`
+                });
+            } catch (notifError) {
+                console.error('Error creating rejection notification:', notifError);
+            }
 
-            // Send email notification for rejection
-            await emailService.sendEmail(worker.email, 'Documents Verification Failed', 
-                `Dear ${worker.name},\n\nYour documents have been rejected.\nReason: ${remarks}\n\nPlease upload the correct documents.`);
+            console.log('Sending rejection email...');
+            try {
+                await emailService.sendEmail(worker.email, 'Documents Verification Failed', 
+                    `Dear ${worker.name},\n\nYour documents have been rejected.\nReason: ${remarks}\n\nPlease upload the correct documents.`);
+            } catch (emailError) {
+                console.error('Error sending rejection email:', emailError);
+            }
         } else if (status === 'verified') {
-            await NotificationService.createNotification({
-                ...notificationData,
-                type: 'document_verified',
-                title: 'Documents Verified Successfully',
-                message: 'Your documents have been verified successfully. You can now start accepting bookings.'
-            });
+            try {
+                await NotificationService.createNotification({
+                    ...notificationData,
+                    type: 'document_verified',
+                    title: 'Documents Verified Successfully',
+                    message: 'Your documents have been verified successfully. You can now start accepting bookings.'
+                });
+            } catch (notifError) {
+                console.error('Error creating verification notification:', notifError);
+            }
 
-            // Send email notification for verification
-            await emailService.sendEmail(worker.email, 'Documents Verified Successfully', 
-                `Dear ${worker.name},\n\nYour documents have been verified successfully. You can now start accepting bookings.`);
+            console.log('Sending verification email...');
+            try {
+                await emailService.sendEmail(worker.email, 'Documents Verified Successfully', 
+                    `Dear ${worker.name},\n\nYour documents have been verified successfully. You can now start accepting bookings.`);
+            } catch (emailError) {
+                console.error('Error sending verification email:', emailError);
+            }
+            
             // Also mark worker profile as verified and active
             try {
+                console.log('Updating worker profile...');
                 const wp = await WorkerProfile.findById(workerDocument.workerId);
                 if (wp) {
                     wp.isVerified = true;
                     wp.status = 'active';
                     await wp.save();
+                    console.log('Worker profile updated successfully');
                 }
             } catch (profileErr) {
                 console.error('Error updating WorkerProfile after document verification:', profileErr);
             }
         } else {
-            await NotificationService.createNotification({
-                ...notificationData,
-                type: 'profile_updated',
-                title: 'Document Status Updated',
-                message: `Your documents status has been updated to: ${status}${remarks ? ` (${remarks})` : ''}`
-            });
+            try {
+                await NotificationService.createNotification({
+                    ...notificationData,
+                    type: 'profile_updated',
+                    title: 'Document Status Updated',
+                    message: `Your documents status has been updated to: ${status}${remarks ? ` (${remarks})` : ''}`
+                });
+            } catch (notifError) {
+                console.error('Error creating status update notification:', notifError);
+            }
         }
         
         // If documents were rejected, ensure worker profile is not verified
         if (status === 'rejected') {
             try {
+                console.log('Updating worker profile for rejection...');
                 const wp = await WorkerProfile.findById(workerDocument.workerId);
                 if (wp) {
                     wp.isVerified = false;
                     wp.status = 'pending';
                     await wp.save();
+                    console.log('Worker profile updated for rejection');
                 }
             } catch (profileErr) {
                 console.error('Error updating WorkerProfile after document rejection:', profileErr);
             }
         }
+
+        console.log('Sending response...');
         res.status(200).json({
             success: true,
             data: workerDocument
         });
+        console.log('Response sent successfully');
     } catch (error) {
         console.error('Verify documents error:', error);
         res.status(500).json({
@@ -491,6 +528,65 @@ exports.getDocumentById = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching document',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get worker documents by worker ID
+// @route   GET /api/worker-documents/worker/:workerId
+// @access  Private (Admin only)
+exports.getWorkerDocumentsByWorkerId = async (req, res) => {
+    try {
+        const { workerId } = req.params;
+
+        // Only admins can fetch documents by worker ID
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to view worker documents'
+            });
+        }
+
+        const query = WorkerDocument.findOne({ workerId });
+
+        // Populate worker details for admin
+        query.populate('workerId', 'name email phone')
+            .populate('lastVerifiedBy', 'name email');
+
+        const document = await query.exec();
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'No documents found for this worker'
+            });
+        }
+
+        // Format response
+        const response = {
+            success: true,
+            data: {
+                _id: document._id,
+                workerId: document.workerId,
+                aadhar: document.aadhar,
+                pan: document.pan,
+                policeVerification: document.policeVerification,
+                certifications: document.certifications,
+                status: document.status,
+                isKYCComplete: document.isKYCComplete,
+                lastVerifiedBy: document.lastVerifiedBy,
+                createdAt: document.createdAt,
+                updatedAt: document.updatedAt
+            }
+        };
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error('Get worker documents by worker ID error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching worker documents',
             error: error.message
         });
     }

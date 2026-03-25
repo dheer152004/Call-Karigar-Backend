@@ -6,7 +6,8 @@ const {
  updateWorkerDocuments,
  verifyDocuments,
  deleteDocument,
- getDocumentById
+ getDocumentById,
+ getWorkerDocumentsByWorkerId
 } = require('./workerDocuments.controller');
 const { protect, authorize } = require('../../../../middleware/auth');
 
@@ -24,6 +25,7 @@ router.post('/',
 
 // Worker and Admin routes
 router.get('/', getWorkerDocuments);
+router.get('/worker/:workerId', authorize('admin'), getWorkerDocumentsByWorkerId);
 router.get('/:id', getDocumentById);
 router.put('/:id', authorize('worker', 'admin'), updateWorkerDocuments);
 

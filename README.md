@@ -2,7 +2,7 @@
 
 A comprehensive backend API for the Call Karigar platform - a service booking marketplace that connects customers with professional service providers. Built with Node.js, Express, and MongoDB.
 
-## 🚀 Features
+## Features
 
 ### Core Functionality
 - **Multi-role Authentication**: Support for customers, workers, and admins
@@ -26,7 +26,7 @@ A comprehensive backend API for the Call Karigar platform - a service booking ma
 - **Worker Services**: Individual service offerings by workers
 - **Availability Management**: Time slot booking system
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Backend Framework
 - **Node.js** - Runtime environment
@@ -127,7 +127,7 @@ call-kaarigar-server/
 └── README.md                    # Project documentation
 ```
 
-## 🔧 Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 - Node.js (v16 or higher)
@@ -251,7 +251,16 @@ npm start
 - `POST /api/support-tickets` - Create support ticket
 - `PUT /api/support-tickets/:id` - Update ticket status
 
-## 🔐 User Roles & Permissions
+### Worker Documents
+- `POST /api/worker-documents` - Upload worker documents (Worker)
+- `GET /api/worker-documents` - Get current user's documents (Worker/Admin)
+- `GET /api/worker-documents/worker/:workerId` - Get worker documents by worker ID (Admin)
+- `GET /api/worker-documents/:id` - Get document by document ID (Worker/Admin)
+- `PUT /api/worker-documents/:id` - Update document status or documents (Worker/Admin)
+- `PATCH /api/worker-documents/:id/verify` - Verify/reject worker documents (Admin)
+- `DELETE /api/worker-documents/:id` - Delete document (Worker/Admin)
+
+## User Roles & Permissions
 
 ### Customer
 - Register and manage profile
@@ -281,7 +290,7 @@ npm start
 - Support ticket management
 - Analytics and reporting
 
-## 🚀 Deployment
+## Deployment
 
 ### Vercel Deployment
 The application is configured for Vercel deployment:
@@ -295,7 +304,7 @@ Alternative deployment configuration available in `render.yaml`:
 - Build and start commands
 - Health check endpoint
 
-## 🔧 Development
+## Development
 
 ### Available Scripts
 - `npm start` - Start production server
@@ -322,7 +331,7 @@ Alternative deployment configuration available in `render.yaml`:
 - SupportTicket
 - OTP
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
@@ -330,15 +339,15 @@ Alternative deployment configuration available in `render.yaml`:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
 
-## 📞 Support
+## Support
 
 For support, email support@callkarigar.com or create an issue in the GitHub repository.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with Express.js framework
 - Payment processing by Razorpay
