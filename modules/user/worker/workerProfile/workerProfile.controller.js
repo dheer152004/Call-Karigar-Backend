@@ -1,5 +1,6 @@
 const WorkerProfile = require('./workerProfile.model');
 const User = require('../../user.model');
+const Booking = require('../../../booking/booking.model');
 
 // Helper function to validate worker profile data
 const validateProfileData = (data) => {
@@ -315,6 +316,92 @@ exports.updateAvailability = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error updating availability slots',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get worker stats
+// @route   GET /api/worker-profile/:id/stats
+// @access  Private (Worker Owner or Admin)
+exports.getWorkerStats = async (req, res) => {
+    try {
+        const profile = await WorkerProfile.findById(req.params.id);
+
+        if (!profile) {
+            return res.status(404).json({
+                success: false,
+                message: 'Worker profile not found'
+            });
+        }
+
+        // Check ownership or admin status
+        if (profile._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to view these stats'
+            });
+        }
+
+        const [bookingCounts, earningAgg] = await Promise.all([
+            Booking.aggregate([
+                { $match: { workerId: req.params.id } },
+                {
+                    $group: {
+                        _id: '$status',
+                        count: { $sum: 1 }
+                    }
+                }
+            ]),
+            Booking.aggregate([
+                {
+                    $match: {
+                        workerId: req.params.id,
+                        status: 'completed'
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalEarnings: { $sum: '$totalAmount' }
+                    }
+                }
+            ])
+        ]);
+
+        const statusCountMap = bookingCounts.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+        }, {});
+
+        const stats = {
+            totalJobs: Object.values(statusCountMap).reduce((sum, value) => sum + value, 0),
+            completedJobs: statusCountMap.completed || 0,
+            cancelledJobs: statusCountMap.cancelled || 0,
+            pendingJobs: statusCountMap.pending || 0,
+            confirmedJobs: statusCountMap.confirmed || 0,
+            inProgressJobs: statusCountMap['in-progress'] || 0,
+            totalEarnings: earningAgg[0]?.totalEarnings || 0
+        };
+
+        res.status(200).json({
+            success: true,
+            data: {
+                stats,
+                ratingAverage: profile.ratingAverage,
+                ratingCount: profile.ratingCount,
+                totalJobs: stats.totalJobs,
+                completedJobs: stats.completedJobs,
+                cancelledJobs: stats.cancelledJobs,
+                totalEarnings: stats.totalEarnings
+            },
+            message: 'Worker stats retrieved successfully'
+        });
+    } catch (error) {
+        console.error('Get worker stats error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching worker stats',
             error: error.message
         });
     }

@@ -205,14 +205,57 @@ exports.getAllPayments = async (req, res) => {
 
 exports.getCustomerPayments = async (req, res) => {
     try {
-        const payments = await Payment.find({ customerId: req.user._id })
-            .populate('workerId', 'name email')
-            .populate('bookingId')
-            .sort({ createdAt: -1 });
+        const customerId = req.user._id;
+
+        const [payments, bookingCounts, spendAgg] = await Promise.all([
+            Payment.find({ customerId })
+                .populate('workerId', 'name email')
+                .populate('bookingId')
+                .sort({ createdAt: -1 }),
+            Booking.aggregate([
+                { $match: { customerId } },
+                {
+                    $group: {
+                        _id: '$status',
+                        count: { $sum: 1 }
+                    }
+                }
+            ]),
+            Booking.aggregate([
+                {
+                    $match: {
+                        customerId,
+                        status: 'completed'
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalSpent: { $sum: '$totalAmount' }
+                    }
+                }
+            ])
+        ]);
+
+        const statusCountMap = bookingCounts.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+        }, {});
+
+        const stats = {
+            totalSpent: spendAgg[0]?.totalSpent || 0,
+            totalBookings: Object.values(statusCountMap).reduce((sum, value) => sum + value, 0),
+            totalCompleted: statusCountMap.completed || 0,
+            totalPending: statusCountMap.pending || 0,
+            totalConfirmed: statusCountMap.confirmed || 0,
+            totalInProgress: statusCountMap['in-progress'] || 0,
+            totalCancelled: statusCountMap.cancelled || 0
+        };
 
         res.status(200).json({
             success: true,
             count: payments.length,
+            stats,
             data: payments
         });
     } catch (error) {

@@ -6,7 +6,8 @@ const {
     getWorkerProfile,
     updateWorkerProfile,
     deleteWorkerProfile,
-    updateAvailability
+    updateAvailability,
+    getWorkerStats
 } = require('./workerProfile.controller');
 const { protect, authorize } = require('../../../../middleware/auth');
 
@@ -27,5 +28,6 @@ router.post('/', authorize('worker'), createWorkerProfile);
 router.put('/:id', authorize('worker', 'admin'), updateWorkerProfile);
 router.delete('/:id', authorize('worker', 'admin'), deleteWorkerProfile);
 router.put('/:id/availability', authorize('worker'), updateAvailability);
+router.get('/:id/stats', authorize('worker', 'admin'), getWorkerStats);
 
 module.exports = router;
