@@ -7,7 +7,7 @@ A comprehensive backend API for the Call Karigar platform - a service booking ma
 ### Core Functionality
 - **Multi-role Authentication**: Support for customers, workers, and admins
 - **Service Booking System**: Complete booking lifecycle management
-- **Payment Integration**: Razorpay integration for secure payments
+- **Payment Integration**: Cashfree integration for secure payments
 - **Real-time Notifications**: Socket.io for real-time updates
 - **File Upload**: Cloudinary integration for image/document uploads
 - **OTP Verification**: Email and SMS OTP for account verification
@@ -42,7 +42,7 @@ A comprehensive backend API for the Call Karigar platform - a service booking ma
 - **Rate Limiting** - API rate limiting
 
 ### External Services
-- **Razorpay** - Payment gateway
+- **Cashfree** - Payment gateway
 - **Cloudinary** - Media storage and optimization
 - **Nodemailer** - Email service
 - **Socket.io** - Real-time communication
@@ -170,9 +170,10 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Razorpay (Payment)
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+# Cashfree (Payment)
+CASHFREE_API_BASE_URL=https://api.cashfree.com
+CASHFREE_APP_ID=your_cashfree_app_id
+CASHFREE_SECRET=your_cashfree_secret
 
 # Frontend URL (for CORS)
 FRONTEND_URL=http://localhost:3000
@@ -350,7 +351,7 @@ For support, email support@callkarigar.com or create an issue in the GitHub repo
 ## Acknowledgments
 
 - Built with Express.js framework
-- Payment processing by Razorpay
+- Payment processing by Cashfree
 - Media storage by Cloudinary
 - Real-time features powered by Socket.io
       └── payment.service.js

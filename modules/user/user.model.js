@@ -50,7 +50,10 @@ const userSchema = new mongoose.Schema({
         enum: ['active', 'inactive', 'blocked'],
         default: 'active'
     },
-    lastLogin: { type: Date }
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
+    lastLogin: { type: Date },
+    lastLogout: { type: Date }
 }, {
     timestamps: true,
     versionKey: false

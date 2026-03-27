@@ -1,6 +1,7 @@
 const Payment = require('./payment.model');
 const Booking = require('../booking/booking.model');
 const NotificationService = require('../../services/notificationService');
+const paymentService = require('../../services/payment/paymentService');
 
 // Update payment status after successful frontend payment
 exports.verifyPayment = async (req, res) => {

@@ -43,7 +43,7 @@ const PaymentSchema = new mongoose.Schema({
     },
     paymentGateway: {
         type: String,
-        enum: ['razorpay', 'stripe', 'paytm', 'cash'],
+        enum: ['stripe', 'paytm', 'cashfree'],
         // required: true
     },
     gatewayResponse: {
@@ -60,9 +60,6 @@ const PaymentSchema = new mongoose.Schema({
     },
     refundReason: {
         type: String
-    },
-    metadata: {
-        type: Object
     },
     createdAt: {
         type: Date,
