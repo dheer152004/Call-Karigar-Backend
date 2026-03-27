@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../user/user.model');
 const CustomerProfile = require('../user/customer/customerProfile.model');
+const otpController = require('../otp/otp.controller');
 const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model');
 const AdminProfile = require('../user/admin/admin.model');
 const NotificationService = require('../../services/notificationService');
@@ -411,6 +412,56 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+
+// Send email verification OTP
+exports.sendEmailVerificationOTP = async (req, res) => {
+    try {
+        const { userId, email } = req.body;
+        if (!userId || !email) {
+            return res.status(400).json({ success: false, message: 'userId and email are required' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        req.body = {
+            ...req.body,
+            method: 'email',
+            purpose: 'email_verification',
+            email: email.toLowerCase().trim()
+        };
+
+        return otpController.sendOTP(req, res);
+
+    } catch (error) {
+        console.error('sendEmailVerificationOTP error:', error);
+        res.status(500).json({ success: false, message: 'Server error sending email OTP' });
+    }
+};
+
+// Verify email OTP
+exports.verifyEmailOTP = async (req, res) => {
+    try {
+        const { userId, otp, email } = req.body;
+        if (!userId || !otp || !email) {
+            return res.status(400).json({ success: false, message: 'userId, otp and email are required' });
+        }
+
+        req.body = {
+            ...req.body,
+            method: 'email',
+            email: email.toLowerCase().trim()
+        };
+
+        return otpController.verifyOTP(req, res);
+
+    } catch (error) {
+        console.error('verifyEmailOTP error:', error);
+        res.status(500).json({ success: false, message: 'Server error verifying email OTP' });
+    }
+};
 
 // Logout user
 exports.logoutUser = async (req, res) => {
