@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../user/user.model');
 const CustomerProfile = require('../user/customer/customerProfile.model');
@@ -5,7 +6,7 @@ const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model'
 const AdminProfile = require('../user/admin/admin.model');
 const NotificationService = require('../../services/notificationService');
 const Address = require('../address/address.model');
-
+const EmailService = require('../../services/emailService');
 
 // returns profile, uses _id pattern consistently
 const createBasicProfile = async (user) => {
@@ -435,6 +436,126 @@ exports.logoutUser = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error during logout',
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
+        });
+    }
+};
+
+
+// Forgot password (send reset link via email)
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required.'
+            });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+            // minimal information leak risk: always respond success
+            return res.status(200).json({
+                success: true,
+                message: 'If this email is registered, a password reset link has been sent.'
+            });
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+        await user.save({ validateBeforeSave: false });
+
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password/${resetToken}`;
+        const subject = 'Password Reset Request - Call Karigar';
+        const html = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Password Reset Request</h2>
+                <p>Hi ${user.name || 'User'},</p>
+                <p>You requested to reset your password. Please click the link below to reset it:</p>
+                <p><a href="${resetUrl}" style="color: #1a73e8;">Reset Password</a></p>
+                <p>This link will expire in 1 hour. If you did not request this, please ignore this email.</p>
+            </div>
+        `;
+
+        const emailSent = await EmailService.sendEmail(user.email, subject, '', html);
+
+        if (!emailSent) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpires = undefined;
+            await user.save({ validateBeforeSave: false });
+            return res.status(500).json({
+                success: false,
+                message: 'Unable to send reset email. Please try again later.'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'If this email is registered, a password reset link has been sent.'
+        });
+
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during password reset request',
+            ...(process.env.NODE_ENV !== 'production' && { error: error.message })
+        });
+    }
+};
+
+
+// Reset password through token
+exports.resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+        if (!token || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Token and new password are required.'
+            });
+        }
+
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() }
+        }).select('+resetPasswordToken +resetPasswordExpires');
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired password reset token.'
+            });
+        }
+
+        user.password = password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        const jwtToken = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRE || '7d' }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Password has been reset successfully.',
+            data: { token: jwtToken }
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error during password reset',
             ...(process.env.NODE_ENV !== 'production' && { error: error.message })
         });
     }
