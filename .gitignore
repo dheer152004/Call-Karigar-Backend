@@ -40,3 +40,7 @@ build/
 
 # Optional: Debug logs from MongoDB memory server
 dump/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml

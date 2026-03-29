@@ -3,8 +3,91 @@ const Booking = require('./booking.model');
 const WorkerService = require('../user/worker/workerService/workerService.model');
 const Payment = require('../payment/payment.model');
 const Coupon = require('../coupon/coupon.model');
+const CustomerProfile = require('../user/customer/customerProfile.model');
+const WorkerProfile = require('../user/worker/workerProfile/workerProfile.model');
 const bookingService = require('./booking.service');
 const { updateBookingStatus } = require('./booking.service.updateStatus');
+
+const incrementCancellationStats = async (booking) => {
+    try {
+        await Promise.all([
+            CustomerProfile.updateOne(
+                { _id: booking.customerId },
+                { $inc: { 'stats.cancelledBookings': 1 } }
+            ),
+            WorkerProfile.updateOne(
+                { _id: booking.workerId },
+                { $inc: { 'stats.cancelledJobs': 1 } }
+            )
+        ]);
+    } catch (e) {
+        // Stats updates should not block cancellation
+        console.error('Error incrementing cancellation stats:', e.message);
+    }
+};
+
+const validateCancellableStatus = (booking) => {
+    if (booking.status === 'cancelled') {
+        return { ok: false, message: 'Booking is already cancelled' };
+    }
+    if (booking.status === 'completed') {
+        return { ok: false, message: 'Completed booking cannot be cancelled' };
+    }
+    return { ok: true };
+};
+
+const cancelBookingInternal = async ({ req, res, cancelledBy, roleCheck }) => {
+    const { bookingId } = req.params;
+    const reason = req.body?.reason || `Cancelled by ${cancelledBy}`;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    const canCancel = validateCancellableStatus(booking);
+    if (!canCancel.ok) {
+        return res.status(400).json({ success: false, message: canCancel.message });
+    }
+
+    if (roleCheck) {
+        const roleCheckResult = roleCheck(booking);
+        if (!roleCheckResult.ok) {
+            return res.status(roleCheckResult.status || 403).json({
+                success: false,
+                message: roleCheckResult.message
+            });
+        }
+    }
+
+    booking.status = 'cancelled';
+    booking.cancelledBy = cancelledBy;
+    booking.cancellationReason = reason;
+    await booking.save();
+
+    await incrementCancellationStats(booking);
+
+    await Promise.all([
+        bookingService.createBookingNotification(
+            booking,
+            bookingService.NOTIFICATION_TYPES.BOOKING_CANCELLED,
+            booking.customerId,
+            'customer'
+        ),
+        bookingService.createBookingNotification(
+            booking,
+            bookingService.NOTIFICATION_TYPES.BOOKING_CANCELLED,
+            booking.workerId,
+            'worker'
+        )
+    ]);
+
+    return res.status(200).json({
+        success: true,
+        message: 'Booking cancelled successfully',
+        data: booking
+    });
+};
 
 exports.handleBookingRequest = async (req, res) => {
     try {
@@ -56,6 +139,10 @@ exports.handleBookingRequest = async (req, res) => {
         booking.workerResponseTime = new Date();
         await booking.save();
 
+        if (action === 'reject') {
+            await incrementCancellationStats(booking);
+        }
+
         // Send notifications to customer
         const notificationType = action === 'accept' ? 
             bookingService.NOTIFICATION_TYPES.BOOKING_CONFIRMED :
@@ -79,6 +166,78 @@ exports.handleBookingRequest = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error handling booking request',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Cancel booking as customer
+// @route   PATCH /api/bookings/:bookingId/cancel/customer
+// @access  Private (Customer only)
+exports.cancelBookingAsCustomer = async (req, res) => {
+    try {
+        return await cancelBookingInternal({
+            req,
+            res,
+            cancelledBy: 'customer',
+            roleCheck: (booking) => {
+                if (booking.customerId.toString() !== req.user._id.toString()) {
+                    return { ok: false, status: 403, message: 'Not authorized to cancel this booking' };
+                }
+                return { ok: true };
+            }
+        });
+    } catch (error) {
+        console.error('Cancel booking (customer) error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error cancelling booking',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Cancel booking as worker
+// @route   PATCH /api/bookings/:bookingId/cancel/worker
+// @access  Private (Worker only)
+exports.cancelBookingAsWorker = async (req, res) => {
+    try {
+        return await cancelBookingInternal({
+            req,
+            res,
+            cancelledBy: 'worker',
+            roleCheck: (booking) => {
+                if (booking.workerId.toString() !== req.user._id.toString()) {
+                    return { ok: false, status: 403, message: 'Not authorized to cancel this booking' };
+                }
+                return { ok: true };
+            }
+        });
+    } catch (error) {
+        console.error('Cancel booking (worker) error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error cancelling booking',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Cancel booking as admin
+// @route   PATCH /api/bookings/:bookingId/cancel/admin
+// @access  Private (Admin only)
+exports.cancelBookingAsAdmin = async (req, res) => {
+    try {
+        return await cancelBookingInternal({
+            req,
+            res,
+            cancelledBy: 'admin'
+        });
+    } catch (error) {
+        console.error('Cancel booking (admin) error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error cancelling booking',
             error: error.message
         });
     }
@@ -582,60 +741,5 @@ exports.updateBooking = async (req, res) => {
     }
 };
 
-exports.cancelBooking = async (req, res) => {
-    try {
-        const booking = await Booking.findById(req.params.id);
-
-        if (!booking) {
-            return res.status(404).json({
-                success: false,
-                message: 'Booking not found'
-            });
-        }
-
-        // Check authorization
-        if (req.user.role !== 'admin' && 
-            req.user._id.toString() !== booking.customerId.toString() && 
-            req.user._id.toString() !== booking.workerId.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to cancel this booking'
-            });
-        }
-
-        booking.status = 'cancelled';
-        booking.cancelledBy = req.user.role;
-        booking.cancellationReason = req.body.reason;
-        await booking.save();
-
-        // Create notifications for both customer and worker
-        await Promise.all([
-            bookingService.createBookingNotification(
-                booking,
-                bookingService.NOTIFICATION_TYPES.BOOKING_CANCELLED,
-                booking.customerId,
-                'customer'
-            ),
-            bookingService.createBookingNotification(
-                booking,
-                bookingService.NOTIFICATION_TYPES.BOOKING_CANCELLED,
-                booking.workerId,
-                'worker'
-            )
-        ]);
-
-        res.status(200).json({
-            success: true,
-            data: booking
-        });
-    } catch (error) {
-        console.error('Cancel booking error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error cancelling booking',
-            error: error.message
-        });
-    }
-};
 
 module.exports = exports;

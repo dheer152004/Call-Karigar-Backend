@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Call Karigar Backend (Express) deployed to AWS Lambda
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: nodejs20.x
+
+Parameters:
+  MongoUri:
+    Type: String
+    NoEcho: true
+    Default: ''
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+
+Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda.handler
+      CodeUri: .
+      Environment:
+        Variables:
+          NODE_ENV: production
+          MONGO_URI: !Ref MongoUri
+          JWT_SECRET: !Ref JwtSecret
+      Events:
+        ApiRoot:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+        ApiProxy:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: HTTP API endpoint URL
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/'

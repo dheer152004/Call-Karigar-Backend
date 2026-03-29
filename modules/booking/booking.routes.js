@@ -8,7 +8,9 @@ const {
     getWorkerBookings,
     getBooking,
     updateBooking,
-    cancelBooking,
+    cancelBookingAsCustomer,
+    cancelBookingAsWorker,
+    cancelBookingAsAdmin,
     handleBookingRequest
 } = require('./booking.controller');
 const { updateBookingStatus } = require('./booking.service.updateStatus');
@@ -28,10 +30,14 @@ router.get('/worker', authorize('worker'), getWorkerBookings);
 router.post('/:bookingId/handle-request', authorize('worker'), handleBookingRequest);
 router.post('/:bookingId/complete', authorize('worker'), require('./booking.complete.controller').completeBooking);
 
+// Booking cancellation (role-specific)
+router.patch('/:bookingId/cancel/customer', authorize('customer'), cancelBookingAsCustomer);
+router.patch('/:bookingId/cancel/worker', authorize('worker'), cancelBookingAsWorker);
+router.patch('/:bookingId/cancel/admin', authorize('admin'), cancelBookingAsAdmin);
+
 // Mixed access routes
 router.get('/:id', getBooking);
 router.put('/:id', updateBooking);
-router.delete('/:id', cancelBooking);
 
 // Customer-specific status update route
 router.patch('/:bookingId/status', authorize('customer'), updateBookingStatus);
