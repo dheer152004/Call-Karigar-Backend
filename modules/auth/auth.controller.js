@@ -496,7 +496,34 @@ exports.logoutUser = async (req, res) => {
 // Forgot password (send reset link via email)
 exports.forgotPassword = async (req, res) => {
     try {
-        const { email } = req.body;
+        // Support body formats across local Express and API Gateway/Lambda integrations.
+        let email;
+
+        if (req.body && typeof req.body === 'object') {
+            email = req.body.email;
+        }
+
+        if (!email && typeof req.body === 'string') {
+            try {
+                const parsedBody = JSON.parse(req.body);
+                email = parsedBody?.email;
+            } catch (_) {
+                // Ignore parsing error and continue with other fallbacks.
+            }
+        }
+
+        if (!email && req.apiGateway?.event?.body) {
+            try {
+                const rawBody = req.apiGateway.event.isBase64Encoded
+                    ? Buffer.from(req.apiGateway.event.body, 'base64').toString('utf8')
+                    : req.apiGateway.event.body;
+                const parsedBody = JSON.parse(rawBody);
+                email = parsedBody?.email;
+            } catch (_) {
+                // Ignore parsing error and let validation return a clear message.
+            }
+        }
+
         if (!email) {
             return res.status(400).json({
                 success: false,

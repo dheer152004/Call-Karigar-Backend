@@ -12,6 +12,8 @@ dotenv.config();
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Seed coupons in development
 if (process.env.NODE_ENV === 'development') {
     const seedCoupons = require('./modules/coupon/coupon.seed');
@@ -96,6 +98,34 @@ app.use(limiter);
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' })); // Limit JSON body size
 app.use(express.urlencoded({ extended: true }));
+
+// Fallback body parser for API Gateway/Lambda when content-type is missing or incorrect.
+app.use((req, res, next) => {
+  const hasParsedBody = req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0;
+  if (hasParsedBody) {
+    return next();
+  }
+
+  const event = req.apiGateway && req.apiGateway.event;
+  if (!event || !event.body || typeof event.body !== 'string') {
+    return next();
+  }
+
+  try {
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body, 'base64').toString('utf8')
+      : event.body;
+
+    const parsed = JSON.parse(rawBody);
+    if (parsed && typeof parsed === 'object') {
+      req.body = parsed;
+    }
+  } catch (_) {
+    // Ignore non-JSON body and continue; route-level validation will handle required fields.
+  }
+
+  return next();
+});
 
 // Import routes from modules
 const authRoutes = require('./modules/auth/auth.routes');
