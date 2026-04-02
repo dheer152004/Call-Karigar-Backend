@@ -20,6 +20,10 @@ const customerProfileSchema = new mongoose.Schema({
         type: String,
         default: 'default-profile.jpg'
     },
+    photoPublicId: {
+        type: String,
+        default: null
+    },
     bio: {
         type: String,
         trim: true,

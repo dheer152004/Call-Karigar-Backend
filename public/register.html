@@ -50,7 +50,7 @@
             e.preventDefault();
             
             try {
-                const response = await fetch('/api/users/register', {
+                const response = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -71,11 +71,11 @@
                 }
 
                 // Store token in localStorage
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('user', JSON.stringify(data.user));
+                localStorage.setItem('token', data.data.token);
+                localStorage.setItem('user', JSON.stringify(data.data.user));
 
                 // Redirect based on user role
-                switch(data.user.role) {
+                switch(data.data.user.role) {
                     case 'worker':
                         window.location.href = '/worker/dashboard.html';
                         break;

@@ -165,10 +165,21 @@ EMAIL_SERVICE=gmail
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
 
-# Cloudinary (File Upload)
+# File Storage
+FILE_STORAGE_PROVIDER=cloudinary
+
+# Cloudinary (when FILE_STORAGE_PROVIDER=cloudinary)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+
+# AWS S3 (when FILE_STORAGE_PROVIDER=s3)
+AWS_REGION=ap-south-1
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_S3_BUCKET=your_bucket_name
+# Optional: custom public base URL (for CloudFront/custom domain)
+AWS_S3_PUBLIC_BASE_URL=https://your-cdn-or-bucket-url
 
 # Cashfree (Payment)
 CASHFREE_API_BASE_URL=https://api.cashfree.com

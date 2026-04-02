@@ -2,7 +2,7 @@ const WorkerDocument = require('./workerDocuments.model');
 const NotificationService = require('../../../../services/notificationService');
 const User = require('../../../user/user.model');
 const emailService = require('../../../../services/emailService');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../../../../utils/cloudinary');
+const { uploadFile, deleteFile } = require('../../../../utils/storage');
 const WorkerProfile = require('../workerProfile/workerProfile.model');
 
 // Helper function to validate file type
@@ -47,7 +47,7 @@ exports.uploadDocuments = async (req, res) => {
                 const file = files[docType][0];
                 console.log(`Uploading ${docType}:`, file.originalname);
                 
-                const result = await uploadToCloudinary(
+                const result = await uploadFile(
                     file,
                     `workers/${workerId}/documents/${docType}`
                 );
@@ -68,7 +68,7 @@ exports.uploadDocuments = async (req, res) => {
                     files.certifications.map(async (cert, index) => {
                         console.log(`Uploading certification ${index + 1}:`, cert.originalname);
                         
-                        const result = await uploadToCloudinary(
+                        const result = await uploadFile(
                             cert,
                             `workers/${workerId}/documents/certifications`
                         );
@@ -104,14 +104,14 @@ exports.uploadDocuments = async (req, res) => {
                 const requiredDocs = ['aadhar', 'pan', 'policeVerification'];
                 for (const docType of requiredDocs) {
                     if (workerDocument[docType]?.public_id) {
-                        await deleteFromCloudinary(workerDocument[docType].public_id);
+                        await deleteFile(workerDocument[docType].public_id);
                     }
                 }
 
                 if (workerDocument.certifications?.length > 0) {
                     for (const cert of workerDocument.certifications) {
                         if (cert.public_id) {
-                            await deleteFromCloudinary(cert.public_id);
+                            await deleteFile(cert.public_id);
                         }
                     }
                 }
@@ -137,7 +137,7 @@ exports.uploadDocuments = async (req, res) => {
             console.error('Error during upload:', innerError.message);
             for (const file of uploadedFiles) {
                 try {
-                    await deleteFromCloudinary(file.public_id);
+                    await deleteFile(file.public_id);
                 } catch (cleanupError) {
                     console.error('Error cleaning up file:', cleanupError);
                 }

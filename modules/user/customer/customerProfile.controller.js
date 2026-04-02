@@ -1,6 +1,7 @@
 const CustomerProfile = require('./customerProfile.model');
 const Address = require('../../address/address.model');
 const User = require('../user.model');
+const { uploadFile, deleteFile } = require('../../../utils/storage');
 
 // Helper function to validate customer profile data
 const validateProfileData = (data) => {
@@ -299,22 +300,19 @@ exports.uploadProfilePhoto = async (req, res) => {
             });
         }
 
-        const { uploadToCloudinary, deleteFromCloudinary } = require('../../../utils/cloudinary');
-
         // Delete old photo if exists
         if (profile.photo && profile.photo !== 'default-profile.jpg') {
             try {
-                const publicId = profile.photo.split('/').pop().split('.')[0];
-                await deleteFromCloudinary(publicId);
+                await deleteFile(profile.photoPublicId || profile.photo);
             } catch (err) {
                 console.error('Error deleting old photo:', err);
             }
         }
 
-        // Upload new photo to Cloudinary
-        const result = await uploadToCloudinary(req.file.buffer, 'customer-profiles');
+        const result = await uploadFile(req.file, 'customer-profiles');
 
-        profile.photo = result.secure_url;
+        profile.photo = result.url;
+        profile.photoPublicId = result.public_id;
         await profile.save();
 
         res.status(200).json({
